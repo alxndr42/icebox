@@ -66,13 +66,15 @@ def init_folder(ctx, folder_path):
 
 
 @init.command('glacier')
-@click.argument('vault-arn')
+@click.argument('vault')
+@click.option('--profile', '-p', help='AWS profile', default='default')
 @click.pass_context
-def init_glacier(ctx, vault_arn):
+def init_glacier(ctx, vault, profile):
     """Create an Amazon Glacier-backed box."""
     box = ctx.obj['box']
     box.config['backend'] = 'glacier'
-    box.config['vault-arn'] = vault_arn
+    box.config['vault'] = vault
+    box.config['profile'] = profile
     try:
         box.init()
     except Exception as e:
