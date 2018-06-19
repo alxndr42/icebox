@@ -23,7 +23,7 @@ class Backend():
         shutil.copy(str(src_path), str(dst_path))
         return name
 
-    def retrieve_init(self, retrieval_key):
+    def retrieve_init(self, retrieval_key, options):
         """Initiate a retrieval job, return the job key."""
         return retrieval_key
 

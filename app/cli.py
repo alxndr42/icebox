@@ -124,8 +124,12 @@ def put(ctx, box_name, source):
     'destination',
     type=click.Path(
         exists=True, file_okay=False, resolve_path=True, writable=True))
+@click.option(
+    '--option', '-o',
+    help='A key=value option for the backend operation.',
+    multiple=True)
 @click.pass_context
-def get(ctx, box_name, source, destination):
+def get(ctx, box_name, source, destination, option):
     """Retrieve data from a box."""
     base_path = ctx.obj['base']
     box = get_box(base_path, box_name)
@@ -137,11 +141,12 @@ def get(ctx, box_name, source, destination):
         click.echo('Source name not found in box.')
         ctx.exit(1)
 
+    backend_options = dict(o.split('=') for o in option)
     gpg = GPG(base_path.joinpath('GPG'))
     data_path = None
     meta_path = None
     try:
-        data_path, meta_path = box.retrieve(source)
+        data_path, meta_path = box.retrieve(source, backend_options)
         gpg.decrypt(data_path, meta_path, Path(destination))
     except Exception as e:
         click.echo(str(e))

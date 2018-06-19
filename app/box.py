@@ -64,7 +64,7 @@ class Box():
             msg = 'Storage operation failed. ({})'.format(e)
             raise Exception(msg)
 
-    def retrieve(self, source):
+    def retrieve(self, source, backend_options):
         """Retrieve encrypted data and metadata from the backend.
 
            Return a Path tuple of encrypted data and metadata.
@@ -76,8 +76,8 @@ class Box():
                 data_job, meta_job = self._get_retrieval_jobs(source)
             else:
                 data_key, meta_key = self._get_retrieval_keys(source)
-                data_job = backend.retrieve_init(data_key)
-                meta_job = backend.retrieve_init(meta_key)
+                data_job = backend.retrieve_init(data_key, backend_options)
+                meta_job = backend.retrieve_init(meta_key, backend_options)
                 self._set_retrieval_jobs(source, data_job, meta_job)
 
             # Wait until jobs are done

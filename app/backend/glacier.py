@@ -30,10 +30,17 @@ class Backend():
                 body=f, archiveDescription=name)
         return archive.id
 
-    def retrieve_init(self, retrieval_key):
+    def retrieve_init(self, retrieval_key, options):
         """Initiate a retrieval job, return the job key."""
         archive = self.vault.Archive(retrieval_key)
-        job = archive.initiate_archive_retrieval()
+        params = {
+            'Type': 'archive-retrieval',
+            'ArchiveId': retrieval_key,
+            'Tier': 'Standard',
+        }
+        if 'Tier' in options:
+            params['Tier'] = options['Tier']
+        job = archive.initiate_archive_retrieval(jobParameters=params)
         return job.id
 
     def retrieve_status(self, *job_keys):
