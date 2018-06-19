@@ -13,6 +13,7 @@ class Backend():
     def __init__(self, box_path, box_config):
         self.box_path = box_path
         self.box_config = box_config
+        self.tier = box_config['tier']
         profile = box_config['profile']
         vault = box_config['vault']
         self.session = boto3.session.Session(profile_name=profile)
@@ -36,7 +37,7 @@ class Backend():
         params = {
             'Type': 'archive-retrieval',
             'ArchiveId': retrieval_key,
-            'Tier': 'Standard',
+            'Tier': self.tier,
         }
         if 'Tier' in options:
             params['Tier'] = options['Tier']

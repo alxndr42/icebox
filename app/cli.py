@@ -68,13 +68,19 @@ def init_folder(ctx, folder_path):
 @init.command('glacier')
 @click.argument('vault')
 @click.option('--profile', '-p', help='AWS profile', default='default')
+@click.option(
+    '--tier', '-t',
+    help='Default retrieval tier',
+    type=click.Choice(['Expedited', 'Standard', 'Bulk']),
+    default='Standard')
 @click.pass_context
-def init_glacier(ctx, vault, profile):
+def init_glacier(ctx, vault, profile, tier):
     """Create an Amazon Glacier-backed box."""
     box = ctx.obj['box']
     box.config['backend'] = 'glacier'
     box.config['vault'] = vault
     box.config['profile'] = profile
+    box.config['tier'] = tier
     try:
         box.init()
     except Exception as e:
