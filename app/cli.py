@@ -63,6 +63,7 @@ def init_folder(ctx, folder_path):
         msg = 'Box initialization failed. ({})'.format(e)
         click.echo(msg)
         ctx.exit(1)
+    click.echo('Box initialized.')
 
 
 @init.command('glacier')
@@ -87,6 +88,7 @@ def init_glacier(ctx, vault, profile, tier):
         msg = 'Box initialization failed. ({})'.format(e)
         click.echo(msg)
         ctx.exit(1)
+    click.echo('Box initialized.')
 
 
 @icebox.command()
@@ -121,6 +123,7 @@ def put(ctx, box_name, source):
             data_path.unlink()
         if meta_path and meta_path.exists():
             meta_path.unlink()
+    click.echo('Source stored in box.')
 
 
 @icebox.command()
@@ -162,3 +165,4 @@ def get(ctx, box_name, source, destination, option):
             data_path.unlink()
         if meta_path and meta_path.exists():
             meta_path.unlink()
+    click.echo('Source retrieved from box.')
