@@ -1,0 +1,33 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "glacier:AbortMultipartUpload",
+                "glacier:CompleteMultipartUpload",
+                "glacier:DeleteArchive",
+                "glacier:DescribeJob",
+                "glacier:DescribeVault",
+                "glacier:GetJobOutput",
+                "glacier:GetVaultNotifications",
+                "glacier:InitiateJob",
+                "glacier:InitiateMultipartUpload",
+                "glacier:ListJobs",
+                "glacier:ListMultipartUploads",
+                "glacier:ListParts",
+                "glacier:UploadArchive",
+                "glacier:UploadMultipartPart"            ],
+            "Resource": "arn:aws:glacier:*:*:vaults/*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "glacier:GetDataRetrievalPolicy",
+                "glacier:ListVaults",
+                "glacier:ListProvisionedCapacity"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

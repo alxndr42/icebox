@@ -12,6 +12,7 @@ pytest = "*"
 pytest-datadir = "*"
 python-gnupg = "*"
 pyyaml = "*"
+twine = "*"
 
 [dev-packages]
 
