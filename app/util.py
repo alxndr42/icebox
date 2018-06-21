@@ -34,7 +34,9 @@ class File():
     def tar(path):
         """Create a tar-file from the given Path, return its Path."""
         try:
-            base = str(File.mktemp())
+            tmpfile = File.mktemp()
+            tmpfile.unlink()
+            base = str(tmpfile)
             tar = shutil.make_archive(base, 'tar', path.parent, path.name)
             return Path(tar)
         except Exception as e:
