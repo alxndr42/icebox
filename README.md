@@ -14,6 +14,7 @@ Requirements
 
 * AWS credentials with write access to Glacier
 * GnuPG public/private keypair
+* Python 3.5 or higher
 
 Setup
 -----
@@ -37,7 +38,7 @@ i.e. no password prompts blocking the operation.
 
 Install icebox using pip (or [pipsi][]):
 
-    pip install icebox
+    pip3 install icebox
 
   [pipsi]: https://github.com/mitsuhiko/pipsi
 
@@ -50,7 +51,7 @@ Create the box _mybox_ for a Glacier vault called *myvault* like this:
 
     icebox init mybox 0xMYKEYID glacier myvault
 
-If your AWS credentials are not in the `default` profile, use the `--profile`
+If your AWS credentials are not in the default profile, use the `--profile`
 option:
 
     icebox init mybox 0xMYKEYID glacier myvault --profile icebox
@@ -59,19 +60,19 @@ option:
 
 To store a file or directory, simply specify its location:
 
-    icebox put myvault cat-pictures/grumpy.jpg
+    icebox put mybox cat-pictures/grumpy.jpg
 
 **Retrieve data from a box**
 
 There are no directories in boxes, so you just specify the original name of the
 source and a destination:
 
-    icebox get myvault grumpy.jpg ~/Desktop
+    icebox get mybox grumpy.jpg ~/Desktop
 
 Standard retrievals can take a long time. To perform an [Expedited][pricing]
 retrieval, use the `Tier` option:
 
-    icebox get myvault grumpy.jpg ~/Desktop -o Tier=Expedited
+    icebox get mybox grumpy.jpg ~/Desktop -o Tier=Expedited
 
 Retrieval operations are tracked by icebox, so you can interrupt a waiting
 retrieval and request the same source again later.
