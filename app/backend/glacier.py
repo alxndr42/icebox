@@ -1,10 +1,16 @@
+import io
 from pathlib import Path
 import shutil
 
 import boto3
+from botocore.utils import calculate_tree_hash
 
 from app import NAME
-from app.util import File, JobStatus
+from app.util import File, JobStatus, OffsetRangeWrapper
+
+
+PART_SIZE = 64 * 1024 * 1024
+MULTIPART_LIMIT = 100 * 1024 * 1024
 
 
 class Backend():
@@ -26,10 +32,27 @@ class Backend():
 
     def store(self, src_path, name):
         """Store the given file under the name, return a retrieval key."""
-        with open(src_path, 'rb') as f:
-            archive = self.vault.upload_archive(
-                body=f, archiveDescription=name)
-        return archive.id
+        size = src_path.stat().st_size
+        if size < MULTIPART_LIMIT:
+            with open(src_path, 'rb') as f:
+                result = self.vault.upload_archive(
+                    archiveDescription=name, body=f)
+            archive_id = result.id
+        else:
+            mpu = self.vault.initiate_multipart_upload(
+                archiveDescription=name, partSize=str(PART_SIZE))
+            offset = 0
+            with open(src_path, 'rb') as f:
+                treehash = calculate_tree_hash(f)
+                while offset < size:
+                    max_offset = min(size, offset + PART_SIZE)
+                    r = 'bytes {}-{}/*'.format(offset, max_offset - 1)
+                    w = OffsetRangeWrapper(f, offset, max_offset)
+                    mpu.upload_part(range=r, body=w)
+                    offset += PART_SIZE
+            result = mpu.complete(archiveSize=str(size), checksum=treehash)
+            archive_id = result['archiveId']
+        return archive_id
 
     def retrieve_init(self, retrieval_key, options):
         """Initiate a retrieval job, return the job key."""
