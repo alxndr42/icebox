@@ -128,6 +128,13 @@ class Box():
         with open(key_file, 'w') as f:
             yaml.safe_dump(keydict, f, default_flow_style=False)
 
+    def _clear_retrieval_keys(self, source):
+        """Clear retrieval keys for the given source."""
+        key_path = self.path.joinpath('retrieval-keys')
+        key_file = key_path.joinpath(source)
+        if key_file.exists():
+            key_file.unlink()
+
     def _has_retrieval_jobs(self, source):
         """Return True if retrieval jobs exist for the given source."""
         job_path = self.path.joinpath('retrieval-jobs')
@@ -163,6 +170,18 @@ class Box():
         job_file = job_path.joinpath(source)
         if job_file.exists():
             job_file.unlink()
+
+    def delete(self, source):
+        """Delete encrypted data and metadata in the backend."""
+        backend = self.backend()
+        try:
+            data_key, meta_key = self._get_retrieval_keys(source)
+            backend.delete(data_key)
+            backend.delete(meta_key)
+            self._clear_retrieval_keys(source)
+        except Exception as e:
+            msg = 'Delete operation failed. ({})'.format(e)
+            raise Exception(msg)
 
     def backend(self):
         """Return a backend instance for this box."""

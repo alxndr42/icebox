@@ -166,3 +166,27 @@ def get(ctx, box_name, source, destination, option):
         if meta_path and meta_path.exists():
             meta_path.unlink()
     click.echo('Source retrieved from box.')
+
+
+@icebox.command()
+@click.argument('box-name')
+@click.argument('source')
+@click.pass_context
+def delete(ctx, box_name, source):
+    """Delete data from a box."""
+    base_path = ctx.obj['base']
+    box = get_box(base_path, box_name)
+    if not box.exists():
+        click.echo('Box not found.')
+        ctx.exit(1)
+
+    if not box.contains(source):
+        click.echo('Source name not found in box.')
+        ctx.exit(1)
+
+    try:
+        box.delete(source)
+    except Exception as e:
+        click.echo(str(e))
+        ctx.exit(1)
+    click.echo('Source deleted from box.')

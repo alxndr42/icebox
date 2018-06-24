@@ -56,3 +56,8 @@ class Backend():
             return JobStatus.success
         else:
             return JobStatus.failure
+
+    def delete(self, retrieval_key):
+        """Delete the data for the given retrieval key."""
+        file_path = self.folder_path.joinpath(retrieval_key)
+        file_path.unlink()

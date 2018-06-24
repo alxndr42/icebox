@@ -82,6 +82,17 @@ class TestFolderBackend():
         with pytest.raises(AssertionError) as e:
             cli.get('test')
 
+    def test_delete(self, datadir):
+        """Delete a file."""
+        cli = CliWrapper(datadir)
+        cli.init()
+        cli.put('test')
+        cli.delete('test')
+        with pytest.raises(AssertionError) as e:
+            cli.get('test')
+        with pytest.raises(AssertionError) as e:
+            cli.delete('test')
+
 
 class CliWrapper():
     """Execute the CLI with test directories."""
@@ -124,3 +135,12 @@ class CliWrapper():
         print(result.output)
         assert result.exit_code == 0
         return self._output.joinpath(source)
+
+    def delete(self, source, box=BOX_NAME):
+        """Run the delete command."""
+        base = str(self._base)
+        result = self._runner.invoke(
+            icebox,
+            ['-b', base, 'delete', box, source])
+        print(result.output)
+        assert result.exit_code == 0

@@ -78,3 +78,9 @@ Retrieval operations are tracked by icebox, so you can interrupt a waiting
 retrieval and request the same source again later.
 
   [pricing]: https://aws.amazon.com/glacier/pricing/
+
+**Delete data from a box**
+
+To delete a stored file or directory, use its original name:
+
+    icebox delete mybox grumpy.jpg

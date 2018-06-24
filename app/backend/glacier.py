@@ -106,3 +106,8 @@ class Backend():
             return JobStatus.failure
         else:
             return JobStatus.running
+
+    def delete(self, retrieval_key):
+        """Delete the data for the given retrieval key."""
+        archive = self.vault.Archive(retrieval_key)
+        archive.delete()
