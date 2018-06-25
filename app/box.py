@@ -183,6 +183,19 @@ class Box():
             msg = 'Delete operation failed. ({})'.format(e)
             raise Exception(msg)
 
+    def sources(self):
+        """Return information about known sources."""
+        key_path = self.path.joinpath('retrieval-keys')
+        result = []
+        if key_path.is_dir():
+            for child in key_path.iterdir():
+                source = {
+                    'name': child.name,
+                }
+                result.append(source)
+            result.sort(key=lambda s: s['name'].lower())
+        return result
+
     def backend(self):
         """Return a backend instance for this box."""
         return get_backend(self.config['backend'], self.path, self.config)

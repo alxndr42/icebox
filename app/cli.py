@@ -190,3 +190,18 @@ def delete(ctx, box_name, source):
         click.echo(str(e))
         ctx.exit(1)
     click.echo('Source deleted from box.')
+
+
+@icebox.command()
+@click.argument('box-name')
+@click.pass_context
+def list(ctx, box_name):
+    """List the data in a box."""
+    base_path = ctx.obj['base']
+    box = get_box(base_path, box_name)
+    if not box.exists():
+        click.echo('Box not found.')
+        ctx.exit(1)
+
+    for source in box.sources():
+        click.echo(source['name'])

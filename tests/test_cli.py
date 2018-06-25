@@ -93,6 +93,22 @@ class TestFolderBackend():
         with pytest.raises(AssertionError) as e:
             cli.delete('test')
 
+    def test_list(self, datadir):
+        """Test the list command."""
+        cli = CliWrapper(datadir)
+        cli.init()
+        output = cli.list()
+        assert output == ''
+        cli.put('test')
+        output = cli.list()
+        assert output == 'test\n'
+        cli.put('folder')
+        output = cli.list()
+        assert output == 'folder\ntest\n'
+        cli.delete('folder')
+        output = cli.list()
+        assert output == 'test\n'
+
 
 class CliWrapper():
     """Execute the CLI with test directories."""
@@ -144,3 +160,13 @@ class CliWrapper():
             ['-b', base, 'delete', box, source])
         print(result.output)
         assert result.exit_code == 0
+
+    def list(self, box=BOX_NAME):
+        """Run the list command, return the output."""
+        base = str(self._base)
+        result = self._runner.invoke(
+            icebox,
+            ['-b', base, 'list', box])
+        print(result.output)
+        assert result.exit_code == 0
+        return result.output

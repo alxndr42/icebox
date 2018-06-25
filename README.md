@@ -84,3 +84,9 @@ retrieval and request the same source again later.
 To delete a stored file or directory, use its original name:
 
     icebox delete mybox grumpy.jpg
+
+**List data in a box**
+
+To list the contents of a box:
+
+    icebox list mybox
