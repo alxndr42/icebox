@@ -47,7 +47,7 @@ Usage
 
 **Create a new box**
 
-Create the box _mybox_ for a Glacier vault called *myvault* like this:
+Create the box *mybox* for a Glacier vault called *myvault* like this:
 
     icebox init mybox 0xMYKEYID glacier myvault
 
@@ -67,17 +67,15 @@ To store a file or directory, simply specify its location:
 There are no directories in boxes, so you just specify the original name of the
 source and a destination:
 
-    icebox get mybox grumpy.jpg ~/Desktop
+    icebox get mybox grumpy.jpg -d ~/Desktop
 
 Standard retrievals can take a long time. To perform an [Expedited][pricing]
 retrieval, use the `Tier` option:
 
-    icebox get mybox grumpy.jpg ~/Desktop -o Tier=Expedited
+    icebox get mybox grumpy.jpg -d ~/Desktop -o Tier=Expedited
 
-Retrieval operations are tracked by icebox, so you can interrupt a waiting
+Retrieval operations are tracked by icebox, so you can interrupt a pending
 retrieval and request the same source again later.
-
-  [pricing]: https://aws.amazon.com/glacier/pricing/
 
 **Delete data from a box**
 
@@ -90,3 +88,5 @@ To delete a stored file or directory, use its original name:
 To list the contents of a box:
 
     icebox list mybox
+
+  [pricing]: https://aws.amazon.com/glacier/pricing/

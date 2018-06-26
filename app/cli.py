@@ -136,10 +136,12 @@ def put(ctx, box_name, source):
 @icebox.command()
 @click.argument('box-name')
 @click.argument('source')
-@click.argument(
-    'destination',
+@click.option(
+    '--destination', '-d',
+    help='Destination (default: current directory)',
     type=click.Path(
-        exists=True, file_okay=False, resolve_path=True, writable=True))
+        exists=True, file_okay=False, resolve_path=True, writable=True),
+    default='.')
 @click.option(
     '--option', '-o',
     help='A key=value option for the backend operation.',

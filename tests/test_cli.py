@@ -147,7 +147,7 @@ class CliWrapper():
         output = str(self._output)
         result = self._runner.invoke(
             icebox,
-            ['-b', base, 'get', box, source, output])
+            ['-b', base, 'get', box, source, '-d', output])
         print(result.output)
         assert result.exit_code == 0
         return self._output.joinpath(source)
