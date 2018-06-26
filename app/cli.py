@@ -112,9 +112,10 @@ def put(ctx, box_name, source):
     src_path = Path(source)
     src_name = src_path.name
     if box.contains(src_name):
-        click.echo('Source name already exists in box.')
+        click.echo('Source already exists in box.')
         ctx.exit(1)
 
+    click.echo('Storing {} in box.'.format(src_name))
     gpg = GPG(base_path.joinpath('GPG'))
     data_path = None
     meta_path = None
@@ -129,7 +130,7 @@ def put(ctx, box_name, source):
             data_path.unlink()
         if meta_path and meta_path.exists():
             meta_path.unlink()
-    click.echo('Source stored in box.')
+    click.echo('Stored {} in box.'.format(src_name))
 
 
 @icebox.command()
@@ -153,9 +154,10 @@ def get(ctx, box_name, source, destination, option):
         ctx.exit(1)
 
     if not box.contains(source):
-        click.echo('Source name not found in box.')
+        click.echo('Source not found in box.')
         ctx.exit(1)
 
+    click.echo('Retrieving {} from box.'.format(source))
     backend_options = dict(o.split('=') for o in option)
     gpg = GPG(base_path.joinpath('GPG'))
     data_path = None
@@ -171,7 +173,7 @@ def get(ctx, box_name, source, destination, option):
             data_path.unlink()
         if meta_path and meta_path.exists():
             meta_path.unlink()
-    click.echo('Source retrieved from box.')
+    click.echo('Retrieved {} from box.'.format(source))
 
 
 @icebox.command()
@@ -187,7 +189,7 @@ def delete(ctx, box_name, source):
         ctx.exit(1)
 
     if not box.contains(source):
-        click.echo('Source name not found in box.')
+        click.echo('Source not found in box.')
         ctx.exit(1)
 
     try:
@@ -195,7 +197,7 @@ def delete(ctx, box_name, source):
     except Exception as e:
         click.echo(str(e))
         ctx.exit(1)
-    click.echo('Source deleted from box.')
+    click.echo('Deleted {} from box.'.format(source))
 
 
 @icebox.command()
