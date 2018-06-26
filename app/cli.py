@@ -1,3 +1,5 @@
+import logging
+import os
 from pathlib import Path
 
 import click
@@ -8,6 +10,7 @@ from app.gpg import GPG
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s %(message)s'
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -18,6 +21,9 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.pass_context
 def icebox(ctx, base_dir):
     """Store GnuPG-encrypted files in Amazon Glacier."""
+    if os.environ.get('ICEBOX_DEBUG') == 'true':
+        logging.basicConfig(format=LOG_FORMAT)
+        logging.getLogger('app').setLevel(logging.DEBUG)
     ctx.obj = {}
     if base_dir is None:
         ctx.obj['base'] = Path(click.get_app_dir(NAME))

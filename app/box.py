@@ -1,3 +1,4 @@
+import logging
 import time
 import uuid
 
@@ -9,6 +10,8 @@ from app.util import JobStatus
 
 DATA_SUFFIX = '.data'
 META_SUFFIX = '.meta'
+
+LOG = logging.getLogger(__name__)
 
 
 class Box():
@@ -52,14 +55,16 @@ class Box():
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(self.config, f, default_flow_style=False)
 
-    def store(self, data_path, meta_path, source_name):
+    def store(self, data_path, meta_path, source):
         """Store encrypted data and metadata in the backend."""
         data_name, meta_name = _encrypted_names()
         backend = self.backend()
         try:
+            LOG.debug('Storing %s', source)
             data_key = backend.store(data_path, data_name)
             meta_key = backend.store(meta_path, meta_name)
-            self._set_retrieval_keys(source_name, data_key, meta_key)
+            LOG.debug('Stored %s', source)
+            self._set_retrieval_keys(source, data_key, meta_key)
         except Exception as e:
             msg = 'Storage operation failed. ({})'.format(e)
             raise Exception(msg)
@@ -83,8 +88,7 @@ class Box():
             # Wait until jobs are done
             status = backend.retrieve_status(data_job, meta_job)
             while status == JobStatus.running:
-                # TODO use logger
-                print('Waiting for jobs.')
+                LOG.debug('Retrieve pending for %s', source)
                 time.sleep(60)
                 status = backend.retrieve_status(data_job, meta_job)
             self._clear_retrieval_jobs(source)
@@ -92,8 +96,10 @@ class Box():
                 raise Exception('Retrieval job failed.')
 
             # Download the files
+            LOG.debug('Retrieving %s', source)
             data_path = backend.retrieve_finish(data_job)
             meta_path = backend.retrieve_finish(meta_job)
+            LOG.debug('Retrieved %s', source)
             return data_path, meta_path
         except Exception as e:
             msg = 'Retrieval operation failed. ({})'.format(e)

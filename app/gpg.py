@@ -1,10 +1,14 @@
 import io
+import logging
 import shutil
 
 import gnupg
 import yaml
 
 from app.util import File
+
+
+LOG = logging.getLogger(__name__)
 
 
 class GPG():
@@ -35,12 +39,16 @@ class GPG():
             raise Exception('Unsupported source type.')
 
         if src_type != 'file':
+            LOG.debug('Creating tar file for %s', src_name)
             src_path = File.tar(src_path)
+            LOG.debug('Created tar file for %s', src_name)
 
         try:
             data_path = File.mktemp()
+            LOG.debug('Encrypting %s', src_name)
             with open(src_path, 'rb') as src:
                 self._encrypt_to_file(src, data_path, key_id)
+            LOG.debug('Encrypted %s', src_name)
         except Exception as e:
             msg = 'Source encryption failed. ({})'.format(e)
             raise Exception(msg)
@@ -90,14 +98,18 @@ class GPG():
             raise Exception('Unsupported type: ' + str(source_type))
 
         try:
+            LOG.debug('Decrypting %s', source_name)
             with open(data_path, 'rb') as src:
                 self._decrypt_to_file(src, source_path)
+            LOG.debug('Decrypted %s', source_name)
         except Exception as e:
             msg = 'Source decryption failed. ({})'.format(e)
             raise Exception(msg)
 
         if source_type == 'directory/tar':
+            LOG.debug('Unpacking tar file for %s', source_name)
             shutil.unpack_archive(source_path, dst_path, 'tar')
+            LOG.debug('Unpacked tar file for %s', source_name)
             source_path.unlink()
 
     def _encrypt_to_file(self, src, dst_path, key_id):
