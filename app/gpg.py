@@ -43,12 +43,11 @@ class GPG():
             src_path = File.tar(src_path)
             LOG.debug('Created tar file for %s', src_name)
 
+        LOG.debug('Encrypting %s', src_name)
         try:
             data_path = File.mktemp()
-            LOG.debug('Encrypting %s', src_name)
             with open(src_path, 'rb') as src:
                 self._encrypt_to_file(src, data_path, key_id)
-            LOG.debug('Encrypted %s', src_name)
         except Exception as e:
             msg = 'Source encryption failed. ({})'.format(e)
             raise Exception(msg)
@@ -70,11 +69,13 @@ class GPG():
         except Exception as e:
             msg = 'Metadata encryption failed. ({})'.format(e)
             raise Exception(msg)
+        LOG.debug('Encrypted %s', src_name)
 
         return data_path, meta_path
 
     def decrypt(self, data_path, meta_path, dst_path):
         """Recreate the source from encrypted data and metadata."""
+        LOG.debug('Decrypting source')
         try:
             with open(meta_path, 'rb') as src:
                 metayaml = self._decrypt_to_string(src)
@@ -98,13 +99,12 @@ class GPG():
             raise Exception('Unsupported type: ' + str(source_type))
 
         try:
-            LOG.debug('Decrypting %s', source_name)
             with open(data_path, 'rb') as src:
                 self._decrypt_to_file(src, source_path)
-            LOG.debug('Decrypted %s', source_name)
         except Exception as e:
             msg = 'Source decryption failed. ({})'.format(e)
             raise Exception(msg)
+        LOG.debug('Decrypted %s', source_name)
 
         if source_type == 'directory/tar':
             LOG.debug('Unpacking tar file for %s', source_name)
