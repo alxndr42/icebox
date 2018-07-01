@@ -25,6 +25,7 @@ class Box():
                 self.config = yaml.safe_load(f)
         else:
             self.config = {}
+        self._gpg = None
 
     def exists(self):
         """Check if a configuration file for this box exists."""
@@ -40,13 +41,31 @@ class Box():
         self._save_config()
 
     @property
+    def gpg(self):
+        """Get the GPG instance for this box."""
+        if self._gpg is not None:
+            return self._gpg
+        else:
+            raise Exception('No GPG instance.')
+
+    @gpg.setter
+    def gpg(self, value):
+        """Set the GPG instance for this box."""
+        assert value is not None
+        self._gpg = value
+
+    @property
     def key(self):
         """Get the GnuPG key ID for this box."""
-        return self.config['key-id']
+        if 'key-id' in self.config:
+            return self.config['key-id']
+        else:
+            raise Exception('No key ID.')
 
     @key.setter
     def key(self, value):
         """Set the GnuPG key ID for this box."""
+        assert value is not None
         self.config['key-id'] = value
 
     def _save_config(self):
@@ -55,8 +74,10 @@ class Box():
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(self.config, f, default_flow_style=False)
 
-    def store(self, data_path, meta_path, source):
-        """Store encrypted data and metadata in the backend."""
+    def store(self, src_path):
+        """Encrypt the given source and store in backend."""
+        source = src_path.name
+        data_path, meta_path = self.gpg.encrypt(src_path, self.key)
         data_name, meta_name = _encrypted_names()
         backend = self.backend()
         try:
@@ -68,12 +89,14 @@ class Box():
         except Exception as e:
             msg = 'Storage operation failed. ({})'.format(e)
             raise Exception(msg)
+        finally:
+            if data_path and data_path.exists():
+                data_path.unlink()
+            if meta_path and meta_path.exists():
+                meta_path.unlink()
 
-    def retrieve(self, source, backend_options):
-        """Retrieve encrypted data and metadata from the backend.
-
-           Return a Path tuple of encrypted data and metadata.
-           """
+    def retrieve(self, source, dst_path, backend_options):
+        """Retrieve source from the backend and decrypt."""
         backend = self.backend()
         try:
             # Get existing jobs or start new ones
@@ -100,10 +123,17 @@ class Box():
             data_path = backend.retrieve_finish(data_job)
             meta_path = backend.retrieve_finish(meta_job)
             LOG.debug('Retrieved %s', source)
-            return data_path, meta_path
+
+            # Decrypt original source
+            self.gpg.decrypt(data_path, meta_path, dst_path)
         except Exception as e:
             msg = 'Retrieval operation failed. ({})'.format(e)
             raise Exception(msg)
+        finally:
+            if data_path and data_path.exists():
+                data_path.unlink()
+            if meta_path and meta_path.exists():
+                meta_path.unlink()
 
     def contains(self, source):
         """Return True if the source name exists in this box."""

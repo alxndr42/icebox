@@ -48,6 +48,7 @@ def init(ctx, box_name, key_id):
         click.echo('Invalid key ID.')
         ctx.exit(1)
 
+    box.gpg = gpg
     box.key = key_id
     ctx.obj['box'] = box
 
@@ -116,20 +117,12 @@ def put(ctx, box_name, source):
         ctx.exit(1)
 
     click.echo('Storing {} in box.'.format(src_name))
-    gpg = GPG(base_path.joinpath('GPG'))
-    data_path = None
-    meta_path = None
     try:
-        data_path, meta_path = gpg.encrypt(src_path, box.key)
-        box.store(data_path, meta_path, src_name)
+        box.gpg = GPG(base_path.joinpath('GPG'))
+        box.store(src_path)
     except Exception as e:
         click.echo(str(e))
         ctx.exit(1)
-    finally:
-        if data_path and data_path.exists():
-            data_path.unlink()
-        if meta_path and meta_path.exists():
-            meta_path.unlink()
     click.echo('Stored {} in box.'.format(src_name))
 
 
@@ -160,21 +153,14 @@ def get(ctx, box_name, source, destination, option):
         ctx.exit(1)
 
     click.echo('Retrieving {} from box.'.format(source))
+    dst_path = Path(destination)
     backend_options = dict(o.split('=') for o in option)
-    gpg = GPG(base_path.joinpath('GPG'))
-    data_path = None
-    meta_path = None
     try:
-        data_path, meta_path = box.retrieve(source, backend_options)
-        gpg.decrypt(data_path, meta_path, Path(destination))
+        box.gpg = GPG(base_path.joinpath('GPG'))
+        box.retrieve(source, dst_path, backend_options)
     except Exception as e:
         click.echo(str(e))
         ctx.exit(1)
-    finally:
-        if data_path and data_path.exists():
-            data_path.unlink()
-        if meta_path and meta_path.exists():
-            meta_path.unlink()
     click.echo('Retrieved {} from box.'.format(source))
 
 
