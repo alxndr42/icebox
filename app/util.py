@@ -97,3 +97,14 @@ class OffsetRangeWrapper():
         current = self.stream.tell()
         virtual = current - self.start_offset
         return virtual
+
+
+class Source():
+    """Local information on a stored source."""
+
+    def __init__(self):
+        self.name = None
+        self.type = None
+        self.sha256 = None
+        self.data_key = None
+        self.meta_key = None

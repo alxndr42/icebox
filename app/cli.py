@@ -200,4 +200,4 @@ def list(ctx, box_name):
         ctx.exit(1)
 
     for source in box.sources():
-        click.echo(source['name'])
+        click.echo(source.name)

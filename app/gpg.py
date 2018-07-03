@@ -5,7 +5,7 @@ import shutil
 import gnupg
 import yaml
 
-from app.util import File
+from app.util import File, Source
 
 
 LOG = logging.getLogger(__name__)
@@ -75,42 +75,47 @@ class GPG():
 
     def decrypt(self, data_path, meta_path, dst_path):
         """Recreate the source from encrypted data and metadata."""
+        source = self.decrypt_meta(meta_path)
         LOG.debug('Decrypting source')
-        try:
-            with open(meta_path, 'rb') as src:
-                metayaml = self._decrypt_to_string(src)
-        except Exception as e:
-            msg = 'Metadata decryption failed. ({})'.format(e)
-            raise Exception(msg)
-
-        metadata = yaml.safe_load(metayaml)
-        source_name = metadata['name']
-        source_type = metadata['type']
-        old_sha256 = metadata['sha256']
-        new_sha256 = File.sha256(data_path)
-        if old_sha256 != new_sha256:
+        sha256 = File.sha256(data_path)
+        if source.sha256 != sha256:
             raise Exception('Source checksum failed.')
 
-        if source_type == 'file':
-            source_path = dst_path.joinpath(source_name)
-        elif source_type == 'directory/tar':
-            source_path = File.mktemp()
+        if source.type == 'file':
+            src_path = dst_path.joinpath(source.name)
+        elif source.type == 'directory/tar':
+            src_path = File.mktemp()
         else:
-            raise Exception('Unsupported type: ' + str(source_type))
+            raise Exception('Unsupported type: ' + str(source.type))
 
         try:
             with open(data_path, 'rb') as src:
-                self._decrypt_to_file(src, source_path)
+                self._decrypt_to_file(src, src_path)
         except Exception as e:
             msg = 'Source decryption failed. ({})'.format(e)
             raise Exception(msg)
-        LOG.debug('Decrypted %s', source_name)
+        LOG.debug('Decrypted %s', source.name)
 
-        if source_type == 'directory/tar':
-            LOG.debug('Unpacking tar file for %s', source_name)
-            shutil.unpack_archive(source_path, dst_path, 'tar')
-            LOG.debug('Unpacked tar file for %s', source_name)
-            source_path.unlink()
+        if source.type == 'directory/tar':
+            LOG.debug('Unpacking tar file for %s', source.name)
+            shutil.unpack_archive(src_path, dst_path, 'tar')
+            LOG.debug('Unpacked tar file for %s', source.name)
+            src_path.unlink()
+
+    def decrypt_meta(self, meta_path):
+        """Decrypt the given metadata file and return a Source."""
+        try:
+            with open(meta_path, 'rb') as src:
+                metayaml = self._decrypt_to_string(src)
+            metadata = yaml.safe_load(metayaml)
+            source = Source()
+            source.name = metadata['name']
+            source.type = metadata['type']
+            source.sha256 = metadata['sha256']
+        except Exception as e:
+            msg = 'Metadata decryption failed. ({})'.format(e)
+            raise Exception(msg)
+        return source
 
     def _encrypt_to_file(self, src, dst_path, key_id):
         """Encrypt and sign the given source."""
