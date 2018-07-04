@@ -7,8 +7,6 @@ This command-line client lets you store files and directories in Amazon
 Glacier. All data is encrypted using GnuPG before being uploaded and no
 original filenames will be visible remotely.
 
-  [Amazon Glacier]: https://aws.amazon.com/glacier/
-
 Requirements
 ------------
 
@@ -26,8 +24,6 @@ The credentials should have write access to the Glacier vaults you plan to use.
 See the [example IAM policy](docs/iam-policy.example.json) for recommended
 permissions.
 
-  [Boto documentation]: https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration
-
 **GnuPG keypair**
 
 Create a keypair for icebox and make a note of the ID. Retrieval operations
@@ -39,8 +35,6 @@ i.e. no password prompts blocking the operation.
 Install icebox using pip (or [pipsi][]):
 
     pip3 install icebox
-
-  [pipsi]: https://github.com/mitsuhiko/pipsi
 
 Usage
 -----
@@ -89,4 +83,16 @@ To list the contents of a box:
 
     icebox list mybox
 
+**Refresh data in a box**
+
+To update local box information with the current backend inventory:
+
+    icebox refresh mybox
+
+The `refresh` command does not track long-running operations at this time, so
+if you interrupt a pending refresh, you will have to repeat it.
+
+  [Amazon Glacier]: https://aws.amazon.com/glacier/
+  [Boto documentation]: https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration
+  [pipsi]: https://github.com/mitsuhiko/pipsi
   [pricing]: https://aws.amazon.com/glacier/pricing/

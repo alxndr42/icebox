@@ -201,3 +201,36 @@ def list(ctx, box_name):
 
     for source in box.sources():
         click.echo(source.name)
+
+
+@icebox.command()
+@click.argument('box-name')
+@click.option(
+    '--option', '-o',
+    help='A key=value option for the backend operation.',
+    multiple=True)
+@click.pass_context
+def refresh(ctx, box_name, option):
+    """Refresh local information for a box."""
+    base_path = ctx.obj['base']
+    box = get_box(base_path, box_name)
+    if not box.exists():
+        click.echo('Box not found.')
+        ctx.exit(1)
+
+    click.echo('Refreshing box.')
+    backend_options = dict(o.split('=') for o in option)
+    try:
+        box.gpg = GPG(base_path.joinpath('GPG'))
+        duplicates, singles = box.refresh(backend_options)
+        for d in duplicates:
+            msg = ('WARNING: Duplicate found for {}, data key: "{}", ' +
+                   'meta key: "{}"')
+            click.echo(msg.format(d.name, d.data_key, d.meta_key))
+        for name, key in singles.items():
+            msg = 'WARNING: Unmatched backend name {}, key: "{}"'
+            click.echo(msg.format(name, key))
+    except Exception as e:
+        click.echo(str(e))
+        ctx.exit(1)
+    click.echo('Refreshed box.')

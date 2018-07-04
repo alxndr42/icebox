@@ -1,6 +1,9 @@
+import shutil
+
 from click.testing import CliRunner
 import pytest
 
+from app.box import DATA_SUFFIX, META_SUFFIX
 from app.cli import icebox
 
 
@@ -109,6 +112,25 @@ class TestFolderBackend():
         output = cli.list()
         assert output == 'test\n'
 
+    def test_refresh(self, datadir):
+        """Test the refresh command."""
+        cli = CliWrapper(datadir)
+        cli.init()
+        cli.put('test')
+        for src in cli.backend.iterdir():
+            if src.name.endswith(DATA_SUFFIX):
+                dst = src.parent.joinpath('clone' + DATA_SUFFIX)
+                shutil.copy(str(src), str(dst))
+            elif src.name.endswith(META_SUFFIX):
+                dst = src.parent.joinpath('clone' + META_SUFFIX)
+                shutil.copy(str(src), str(dst))
+        cli.delete('test')
+        output = cli.list()
+        assert output == ''
+        cli.refresh()
+        output = cli.list()
+        assert output == 'test\n'
+
 
 class CliWrapper():
     """Execute the CLI with test directories."""
@@ -119,6 +141,10 @@ class CliWrapper():
         self._input = test_path.joinpath('input')
         self._output = test_path.joinpath('output')
         self._runner = CliRunner()
+
+    @property
+    def backend(self):
+        return self._backend
 
     def init(self, box=BOX_NAME, key=KEY_ID, folder=None):
         """Run the init command."""
@@ -170,3 +196,12 @@ class CliWrapper():
         print(result.output)
         assert result.exit_code == 0
         return result.output
+
+    def refresh(self, box=BOX_NAME):
+        """Run the refresh command."""
+        base = str(self._base)
+        result = self._runner.invoke(
+            icebox,
+            ['-b', base, 'refresh', box])
+        print(result.output)
+        assert result.exit_code == 0

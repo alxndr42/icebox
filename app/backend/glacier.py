@@ -1,4 +1,5 @@
 import io
+import json
 from pathlib import Path
 import shutil
 
@@ -96,6 +97,34 @@ class Backend():
             shutil.copyfileobj(src, dst, 65536)
         return tmp_path
 
+    def delete(self, retrieval_key):
+        """Delete the data for the given retrieval key."""
+        archive = self.vault.Archive(retrieval_key)
+        archive.delete()
+
+    def inventory_init(self):
+        """Initiate an inventory job, return the job key."""
+        job = self.vault.initiate_inventory_retrieval()
+        return job.id
+
+    def inventory_status(self, job_key):
+        """Return the JobStatus of the given job."""
+        return self._job_status(job_key)
+
+    def inventory_finish(self, job_key):
+        """Return a filename to retrieval key mapping."""
+        job = self.vault.Job(job_key)
+        job.load()
+        if job.status_code != 'Succeeded':
+            raise Exception('Job was not successful.')
+
+        response = job.get_output()
+        inventory = json.load(response['body'])
+        result = {}
+        for a in inventory['ArchiveList']:
+            result[a['ArchiveDescription']] = a['ArchiveId']
+        return result
+
     def _job_status(self, job_key):
         """Return the JobStatus of the given job."""
         job = self.vault.Job(job_key)
@@ -106,8 +135,3 @@ class Backend():
             return JobStatus.failure
         else:
             return JobStatus.running
-
-    def delete(self, retrieval_key):
-        """Delete the data for the given retrieval key."""
-        archive = self.vault.Archive(retrieval_key)
-        archive.delete()

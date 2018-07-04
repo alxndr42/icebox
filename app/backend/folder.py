@@ -61,3 +61,18 @@ class Backend():
         """Delete the data for the given retrieval key."""
         file_path = self.folder_path.joinpath(retrieval_key)
         file_path.unlink()
+
+    def inventory_init(self):
+        """Initiate an inventory job, return the job key."""
+        return 'inventory'
+
+    def inventory_status(self, job_key):
+        """Return the JobStatus of the given job."""
+        return JobStatus.success
+
+    def inventory_finish(self, job_key):
+        """Return a filename to retrieval key mapping."""
+        if self.folder_path.exists():
+            return {c.name: c.name for c in self.folder_path.iterdir()}
+        else:
+            return {}

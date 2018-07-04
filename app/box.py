@@ -230,16 +230,97 @@ class Box():
         key_path = self.path.joinpath('retrieval-keys')
         result = []
         if key_path.is_dir():
-            for child in key_path.iterdir():
-                src = Source()
-                src.name = child.name
-                result.append(src)
+            result = [self._load_source(c.name) for c in key_path.iterdir()]
             result.sort(key=lambda s: s.name.lower())
         return result
+
+    def refresh(self, backend_options):
+        """Refresh local information from the backend."""
+        backend = self.backend()
+        job_key = backend.inventory_init()
+        status = backend.inventory_status(job_key)
+        while status == JobStatus.running:
+            LOG.debug('Inventory pending')
+            time.sleep(60)
+            status = backend.inventory_status(job_key)
+        if status == JobStatus.failure:
+            raise Exception('Inventory job failed.')
+
+        sources = self.sources()
+        inventory = backend.inventory_finish(job_key)
+        verifier = KeyVerifier(sources, inventory)
+
+        duplicates = []
+        jobs = {}
+        for meta_key in verifier.unknowns:
+            job = backend.retrieve_init(meta_key, backend_options)
+            jobs[job] = meta_key
+        while jobs:
+            finished = []
+            for job, meta_key in jobs.items():
+                status = backend.retrieve_status(job)
+                if status == JobStatus.failure:
+                    raise Exception('Metadata retrieval failed.')
+                elif status == JobStatus.success:
+                    meta_path = backend.retrieve_finish(job)
+                    src = self.gpg.decrypt_meta(meta_path)
+                    src.data_key = verifier.unknowns[meta_key]
+                    src.meta_key = meta_key
+                    meta_path.unlink()
+                    if not self.contains(src.name):
+                        self._save_source(src)
+                        LOG.debug('Added %s', src.name)
+                    else:
+                        duplicates.append(src)
+                    finished.append(job)
+            jobs = {j: k for j, k in jobs.items() if j not in finished}
+            if jobs:
+                LOG.debug('Metadata retrievals pending: %s', len(jobs))
+                time.sleep(60)
+        return duplicates, verifier.backend_singles
 
     def backend(self):
         """Return a backend instance for this box."""
         return get_backend(self.config['backend'], self.path, self.config)
+
+
+class KeyVerifier():
+    """Verify local and backend information."""
+
+    def __init__(self, sources, inventory):
+        local_keys = {}
+        for s in sources:
+            local_keys[s.data_key] = s.name
+            local_keys[s.meta_key] = s.name
+        backend_data = self._filter_key_suffix(inventory, DATA_SUFFIX)
+        backend_meta = self._filter_key_suffix(inventory, META_SUFFIX)
+        # Find unmatched backend keys
+        singles_data = self._singles(backend_data, backend_meta)
+        singles_meta = self._singles(backend_meta, backend_data)
+        self.backend_singles = {}
+        self.backend_singles.update(singles_data)
+        self.backend_singles.update(singles_meta)
+        for name in singles_data.keys():
+            del backend_data[name]
+        for name in singles_meta.keys():
+            del backend_meta[name]
+        # Find unknown backend metadata keys and their data siblings
+        meta = {
+            n: k for n, k in backend_meta.items() if k not in local_keys}
+        self.unknowns = {
+            k: backend_data[_sibling_name(n)] for n, k in meta.items()}
+
+    @staticmethod
+    def _filter_key_suffix(dict_, suffix):
+        """Filter dict_ by key suffix."""
+        return {k: v for k, v in dict_.items() if k.endswith(suffix)}
+
+    @staticmethod
+    def _singles(dictA, dictB):
+        """Return items from dictA that have no sibling in dictB."""
+        def single(name):
+            return _sibling_name(name) not in dictB
+        return {k: v for k, v in dictA.items() if single(k)}
 
 
 def get_box(base_path, box_name):
@@ -255,3 +336,13 @@ def _backend_names():
     data_name = basename + DATA_SUFFIX
     meta_name = basename + META_SUFFIX
     return data_name, meta_name
+
+
+def _sibling_name(name):
+    """Return the metadata name for a data file and vice versa."""
+    if name.endswith(DATA_SUFFIX):
+        return name[:-len(DATA_SUFFIX)] + META_SUFFIX
+    elif name.endswith(META_SUFFIX):
+        return name[:-len(META_SUFFIX)] + DATA_SUFFIX
+    else:
+        raise Exception('Invalid name: ' + str(name))
