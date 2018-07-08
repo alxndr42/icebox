@@ -5,7 +5,7 @@ import uuid
 import yaml
 
 from app.backend import get_backend
-from app.util import JobStatus, Source
+from app.data import JobStatus, Source
 
 
 DATA_SUFFIX = '.data'

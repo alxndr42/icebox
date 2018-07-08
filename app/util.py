@@ -1,4 +1,3 @@
-from enum import Enum
 import hashlib
 import io
 import os
@@ -46,14 +45,6 @@ class File():
             raise Exception(msg)
 
 
-class JobStatus(Enum):
-    """Status codes for long-running jobs."""
-
-    running = 0
-    success = 1
-    failure = 2
-
-
 class OffsetRangeWrapper():
     """Expose only part of a stream for reading.
 
@@ -97,14 +88,3 @@ class OffsetRangeWrapper():
         current = self.stream.tell()
         virtual = current - self.start_offset
         return virtual
-
-
-class Source():
-    """Local information on a stored source."""
-
-    def __init__(self):
-        self.name = None
-        self.type = None
-        self.sha256 = None
-        self.data_key = None
-        self.meta_key = None

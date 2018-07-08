@@ -5,7 +5,8 @@ import shutil
 import gnupg
 import yaml
 
-from app.util import File, Source
+from app.data import Source
+from app.util import File
 
 
 LOG = logging.getLogger(__name__)

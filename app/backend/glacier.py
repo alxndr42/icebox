@@ -7,7 +7,8 @@ import boto3
 from botocore.utils import calculate_tree_hash
 
 from app import NAME
-from app.util import File, JobStatus, OffsetRangeWrapper
+from app.data import JobStatus
+from app.util import File, OffsetRangeWrapper
 
 
 PART_SIZE = 64 * 1024 * 1024

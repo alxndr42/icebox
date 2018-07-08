@@ -2,7 +2,8 @@ from pathlib import Path
 import shutil
 
 from app import NAME
-from app.util import File, JobStatus
+from app.data import JobStatus
+from app.util import File
 
 
 class Backend():
