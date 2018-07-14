@@ -74,10 +74,9 @@ class GPG():
 
         return data_path, meta_path
 
-    def decrypt(self, data_path, meta_path, dst_path):
-        """Recreate the source from encrypted data and metadata."""
-        source = self.decrypt_meta(meta_path)
-        LOG.debug('Decrypting source')
+    def decrypt_data(self, source, data_path, dst_path):
+        """Decrypt the given data file."""
+        LOG.debug('Decrypting %s', source.name)
         sha256 = File.sha256(data_path)
         if source.sha256 != sha256:
             raise Exception('Source checksum failed.')

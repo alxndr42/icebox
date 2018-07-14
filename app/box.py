@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 import time
 import uuid
 
@@ -13,18 +14,37 @@ META_SUFFIX = '.meta'
 
 LOG = logging.getLogger(__name__)
 
+SQL_SCHEMA_VERSION = '1'
+SQL_CREATE_SOURCES = '''CREATE TABLE IF NOT EXISTS sources (
+                        name text UNIQUE NOT NULL,
+                        type text NOT NULL,
+                        data_hash text NOT NULL,
+                        data_key text NOT NULL,
+                        meta_key text NOT NULL)
+                        '''
+SQL_CREATE_JOBS = '''CREATE TABLE IF NOT EXISTS jobs (
+                     name text UNIQUE NOT NULL,
+                     key text NOT NULL)
+                     '''
+SQL_CREATE_SETTINGS = '''CREATE TABLE IF NOT EXISTS settings (
+                         key text UNIQUE NOT NULL,
+                         value text)
+                         '''
+
 
 class Box():
     """Box configuration and mappings."""
 
     def __init__(self, path):
         self.path = path
+        self.path.mkdir(mode=0o770, parents=True, exist_ok=True)
         self.config_file = self.path.joinpath('config.yml')
         if self.config_file.exists():
             with open(self.config_file, 'r') as f:
                 self.config = yaml.safe_load(f)
         else:
             self.config = {}
+        self._db = SQLite(path)
         self._gpg = None
 
     def exists(self):
@@ -70,7 +90,6 @@ class Box():
 
     def _save_config(self):
         """Save the configuration to file."""
-        self.path.mkdir(mode=0o770, parents=True, exist_ok=True)
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(self.config, f, default_flow_style=False)
 
@@ -85,7 +104,7 @@ class Box():
             source.data_key = backend.store(data_path, data_name)
             source.meta_key = backend.store(meta_path, meta_name)
             LOG.debug('Stored %s', source.name)
-            self._save_source(source)
+            self._db.save_source(source)
         except Exception as e:
             msg = 'Storage operation failed. ({})'.format(e)
             raise Exception(msg)
@@ -95,144 +114,61 @@ class Box():
             if meta_path and meta_path.exists():
                 meta_path.unlink()
 
-    def retrieve(self, source, dst_path, backend_options):
+    def retrieve(self, name, dst_path, backend_options):
         """Retrieve source from the backend and decrypt."""
         data_path = None
-        meta_path = None
         backend = self.backend()
         try:
-            # Get existing jobs or start new ones
-            if self._has_retrieval_jobs(source):
-                data_job, meta_job = self._get_retrieval_jobs(source)
-            else:
-                src = self._load_source(source)
-                data_job = backend.retrieve_init(src.data_key, backend_options)
-                meta_job = backend.retrieve_init(src.meta_key, backend_options)
-                self._set_retrieval_jobs(source, data_job, meta_job)
+            source = self._db.load_source(name)
+            # Get existing retrieval job or start a new one
+            key = self._db.load_job(name)
+            if key is None:
+                key = backend.retrieve_init(source.data_key, backend_options)
+                self._db.save_job(name, key)
 
-            # Wait until jobs are done
-            status = backend.retrieve_status(data_job, meta_job)
+            # Wait until job is done
+            status = backend.retrieve_status(key)
             while status == JobStatus.running:
-                LOG.debug('Retrieve pending for %s', source)
+                LOG.debug('Retrieve pending for %s', name)
                 time.sleep(60)
-                status = backend.retrieve_status(data_job, meta_job)
-            self._clear_retrieval_jobs(source)
+                status = backend.retrieve_status(key)
+            self._db.delete_job(name)
             if status == JobStatus.failure:
                 raise Exception('Retrieval job failed.')
 
-            # Download the files
-            LOG.debug('Retrieving %s', source)
-            data_path = backend.retrieve_finish(data_job)
-            meta_path = backend.retrieve_finish(meta_job)
-            LOG.debug('Retrieved %s', source)
+            # Download the data file
+            LOG.debug('Retrieving %s', name)
+            data_path = backend.retrieve_finish(key)
+            LOG.debug('Retrieved %s', name)
 
             # Decrypt original source
-            self.gpg.decrypt(data_path, meta_path, dst_path)
+            self.gpg.decrypt_data(source, data_path, dst_path)
         except Exception as e:
             msg = 'Retrieval operation failed. ({})'.format(e)
             raise Exception(msg)
         finally:
             if data_path and data_path.exists():
                 data_path.unlink()
-            if meta_path and meta_path.exists():
-                meta_path.unlink()
 
     def contains(self, source):
         """Return True if the source name exists in this box."""
-        key_path = self.path.joinpath('retrieval-keys')
-        key_file = key_path.joinpath(source)
-        return key_file.exists()
-
-    def _load_source(self, source):
-        """Load local source information."""
-        key_path = self.path.joinpath('retrieval-keys')
-        key_file = key_path.joinpath(source)
-        if key_file.exists():
-            with open(key_file, 'r') as f:
-                keydict = yaml.safe_load(f)
-            src = Source()
-            src.name = source
-            src.data_key = keydict['data-key']
-            src.meta_key = keydict['meta-key']
-            return src
-        else:
-            raise Exception('Source not found.')
-
-    def _save_source(self, source):
-        """Save local source information."""
-        key_path = self.path.joinpath('retrieval-keys')
-        key_path.mkdir(mode=0o770, parents=True, exist_ok=True)
-        key_file = key_path.joinpath(source.name)
-        keydict = {
-            'data-key': source.data_key,
-            'meta-key': source.meta_key,
-        }
-        with open(key_file, 'w') as f:
-            yaml.safe_dump(keydict, f, default_flow_style=False)
-
-    def _delete_source(self, source):
-        """Delete local source information."""
-        key_path = self.path.joinpath('retrieval-keys')
-        key_file = key_path.joinpath(source)
-        if key_file.exists():
-            key_file.unlink()
-
-    def _has_retrieval_jobs(self, source):
-        """Return True if retrieval jobs exist for the given source."""
-        job_path = self.path.joinpath('retrieval-jobs')
-        job_file = job_path.joinpath(source)
-        return job_file.exists()
-
-    def _get_retrieval_jobs(self, source):
-        """Get retrieval jobs for the given source."""
-        job_path = self.path.joinpath('retrieval-jobs')
-        job_file = job_path.joinpath(source)
-        if job_file.exists():
-            with open(job_file, 'r') as f:
-                jobdict = yaml.safe_load(f)
-            return jobdict.get('data-job'), jobdict.get('meta-job')
-        else:
-            return None, None
-
-    def _set_retrieval_jobs(self, source, data_job, meta_job):
-        """Set retrieval jobs for the given source."""
-        job_path = self.path.joinpath('retrieval-jobs')
-        job_path.mkdir(mode=0o770, parents=True, exist_ok=True)
-        job_file = job_path.joinpath(source)
-        jobdict = {
-            'data-job': data_job,
-            'meta-job': meta_job,
-        }
-        with open(job_file, 'w') as f:
-            yaml.safe_dump(jobdict, f, default_flow_style=False)
-
-    def _clear_retrieval_jobs(self, source):
-        """Clear retrieval jobs for the given source."""
-        job_path = self.path.joinpath('retrieval-jobs')
-        job_file = job_path.joinpath(source)
-        if job_file.exists():
-            job_file.unlink()
+        return self._db.load_source(source) is not None
 
     def delete(self, source):
         """Delete encrypted data and metadata in the backend."""
         backend = self.backend()
         try:
-            src = self._load_source(source)
+            src = self._db.load_source(source)
             backend.delete(src.data_key)
             backend.delete(src.meta_key)
-            self._delete_source(source)
+            self._db.delete_source(source)
         except Exception as e:
             msg = 'Delete operation failed. ({})'.format(e)
             raise Exception(msg)
 
     def sources(self):
         """Return information about known sources."""
-        key_path = self.path.joinpath('retrieval-keys')
-        result = []
-        if key_path.is_dir():
-            result = [self._load_source(c.name) for c in key_path.iterdir()]
-            result.sort(key=lambda s: s.name.lower())
-        return result
+        return self._db.load_sources()
 
     def refresh(self, backend_options):
         """Refresh local information from the backend."""
@@ -268,7 +204,7 @@ class Box():
                     src.meta_key = meta_key
                     meta_path.unlink()
                     if not self.contains(src.name):
-                        self._save_source(src)
+                        self._db.save_source(src)
                         LOG.debug('Added %s', src.name)
                     else:
                         duplicates.append(src)
@@ -321,6 +257,133 @@ class KeyVerifier():
         def single(name):
             return _sibling_name(name) not in dictB
         return {k: v for k, v in dictA.items() if single(k)}
+
+
+class SQLite():
+    """SQLite wrapper for source and job state."""
+
+    def __init__(self, path):
+        db_path = path.joinpath('box.db')
+        self._conn = sqlite3.connect(str(db_path))
+        self._ensure_tables()
+
+    def load_source(self, name):
+        """Return a Source by name."""
+        stmt = '''SELECT name, type, data_hash, data_key, meta_key
+                  FROM sources
+                  WHERE name=?
+                  '''
+        c = self._conn.execute(stmt, (name,))
+        r = c.fetchone()
+        c.close()
+        if r is not None:
+            return self._to_source(r)
+        else:
+            return None
+
+    def load_sources(self):
+        """Return an iterable for all Sources."""
+        stmt = '''SELECT name, type, data_hash, data_key, meta_key
+                  FROM sources
+                  ORDER BY name COLLATE NOCASE
+                  '''
+        c = self._conn.execute(stmt)
+
+        def generator():
+            for r in c:
+                yield self._to_source(r)
+            c.close()
+
+        return generator()
+
+    def save_source(self, source):
+        """Save a Source."""
+        stmt = '''INSERT INTO sources
+                  (name, type, data_hash, data_key, meta_key)
+                  VALUES (?, ?, ?, ?, ?)
+                  '''
+        data_hash = 'sha256:' + source.sha256
+        values = (
+            source.name,
+            source.type,
+            data_hash,
+            source.data_key,
+            source.meta_key
+        )
+        with self._conn:
+            self._conn.execute(stmt, values)
+
+    def delete_source(self, name):
+        """Delete a Source by name."""
+        stmt = 'DELETE FROM sources WHERE name=?'
+        with self._conn:
+            self._conn.execute(stmt, (name,))
+
+    def load_job(self, name):
+        """Return the job key for the given name."""
+        stmt = 'SELECT key FROM jobs WHERE name=?'
+        c = self._conn.execute(stmt, (name,))
+        r = c.fetchone()
+        c.close()
+        if r is not None:
+            return r[0]
+        else:
+            return None
+
+    def save_job(self, name, key):
+        """Save the job key for the given name."""
+        stmt = 'INSERT INTO jobs (name, key) VALUES (?, ?)'
+        values = (name, key)
+        with self._conn:
+            self._conn.execute(stmt, values)
+
+    def delete_job(self, name):
+        """Delete the job key for the given name."""
+        stmt = 'DELETE FROM jobs WHERE name=?'
+        with self._conn:
+            self._conn.execute(stmt, (name,))
+
+    def _ensure_tables(self):
+        """Ensure all tables exist and are up to date."""
+        with self._conn:
+            self._conn.execute(SQL_CREATE_SETTINGS)
+        stmt = 'SELECT value FROM settings WHERE key="schema"'
+        c = self._conn.execute(stmt)
+        r = c.fetchone()
+        c.close()
+        if r is None:
+            schema = None
+        else:
+            schema = r[0]
+        if schema is None:
+            self._create_tables()
+        elif schema == SQL_SCHEMA_VERSION:
+            pass
+        else:
+            raise Exception('Unsupported schema version: ' + str(schema))
+
+    def _create_tables(self):
+        """Create all tables from scratch."""
+        schema = 'INSERT INTO settings VALUES ("schema", ?)'
+        with self._conn:
+            self._conn.execute(SQL_CREATE_SOURCES)
+            self._conn.execute(SQL_CREATE_JOBS)
+            self._conn.execute(schema, SQL_SCHEMA_VERSION)
+
+    @staticmethod
+    def _to_source(row):
+        """Return a Source for the given row."""
+        source = Source()
+        source.name = row[0]
+        source.type = row[1]
+        data_hash = row[2]
+        if data_hash.startswith('sha256:'):
+            source.sha256 = data_hash[7:]
+        else:
+            raise Exception('Unsupported data hash: ' + str(data_hash))
+        source.data_key = row[3]
+        source.meta_key = row[4]
+        return source
 
 
 def get_box(base_path, box_name):

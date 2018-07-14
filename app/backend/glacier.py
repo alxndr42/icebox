@@ -69,20 +69,9 @@ class Backend():
         job = archive.initiate_archive_retrieval(jobParameters=params)
         return job.id
 
-    def retrieve_status(self, *job_keys):
-        """Return the overall JobStatus of the given jobs.
-
-           Returns failure if any state is failure,
-           success if all states are success,
-           running otherwise.
-           """
-        states = [self._job_status(k) for k in job_keys]
-        if any(s == JobStatus.failure for s in states):
-            return JobStatus.failure
-        elif all(s == JobStatus.success for s in states):
-            return JobStatus.success
-        else:
-            return JobStatus.running
+    def retrieve_status(self, job_key):
+        """Return the JobStatus of the given job."""
+        return self._job_status(job_key)
 
     def retrieve_finish(self, job_key):
         """Finish the job, return the temporary file's Path."""
