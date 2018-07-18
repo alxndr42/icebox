@@ -89,8 +89,8 @@ To update local box information with the current backend inventory:
 
     icebox refresh mybox
 
-The `refresh` command does not track long-running operations at this time, so
-if you interrupt a pending refresh, you will have to repeat it.
+Refresh operations are tracked by icebox, so you can interrupt a refresh and
+continue it later.
 
   [Amazon Glacier]: https://aws.amazon.com/glacier/
   [Boto documentation]: https://boto3.readthedocs.io/en/latest/guide/quickstart.html#configuration

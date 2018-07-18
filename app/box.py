@@ -31,6 +31,8 @@ SQL_CREATE_SETTINGS = '''CREATE TABLE IF NOT EXISTS settings (
                          value text)
                          '''
 
+INVENTORY_JOB = '::inventory::'
+
 
 class Box():
     """Box configuration and mappings."""
@@ -173,28 +175,39 @@ class Box():
     def refresh(self, backend_options):
         """Refresh local information from the backend."""
         backend = self.backend()
-        job_key = backend.inventory_init()
-        status = backend.inventory_status(job_key)
+        inventory_job = self._db.load_job(INVENTORY_JOB)
+        if inventory_job is None:
+            LOG.debug('Initiating inventory job')
+            inventory_job = backend.inventory_init()
+            self._db.save_job(INVENTORY_JOB, inventory_job)
+        status = backend.inventory_status(inventory_job)
         while status == JobStatus.running:
             LOG.debug('Inventory pending')
             time.sleep(60)
-            status = backend.inventory_status(job_key)
+            status = backend.inventory_status(inventory_job)
         if status == JobStatus.failure:
+            self._db.delete_job(inventory_job)
             raise Exception('Inventory job failed.')
 
         sources = self.sources()
-        inventory = backend.inventory_finish(job_key)
+        inventory = backend.inventory_finish(inventory_job)
         verifier = KeyVerifier(sources, inventory)
 
         duplicates = []
         jobs = {}
         for meta_key in verifier.unknowns:
-            job = backend.retrieve_init(meta_key, backend_options)
+            job = self._db.load_job(meta_key)
+            if job is None:
+                LOG.debug('Initiating metadata retrieval')
+                job = backend.retrieve_init(meta_key, backend_options)
+                self._db.save_job(meta_key, job)
             jobs[job] = meta_key
         while jobs:
             finished = []
             for job, meta_key in jobs.items():
                 status = backend.retrieve_status(job)
+                if status != JobStatus.running:
+                    self._db.delete_job(meta_key)
                 if status == JobStatus.failure:
                     raise Exception('Metadata retrieval failed.')
                 elif status == JobStatus.success:
@@ -213,6 +226,7 @@ class Box():
             if jobs:
                 LOG.debug('Metadata retrievals pending: %s', len(jobs))
                 time.sleep(60)
+        self._db.delete_job(INVENTORY_JOB)
         return duplicates, verifier.backend_singles
 
     def backend(self):
