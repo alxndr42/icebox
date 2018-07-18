@@ -1,12 +1,9 @@
-import io
 import json
-from pathlib import Path
 import shutil
 
 import boto3
 from botocore.utils import calculate_tree_hash
 
-from app import NAME
 from app.data import JobStatus
 from app.util import File, OffsetRangeWrapper
 
