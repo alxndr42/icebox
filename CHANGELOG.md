@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.3.0
+-----
+* Use SQLite to store source metadata and job keys
+* Add refresh command
+
 0.2.0
 -----
 * Change get command destination to option

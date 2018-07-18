@@ -20,7 +20,7 @@ LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s %(message)s'
     type=click.Path(file_okay=False))
 @click.pass_context
 def icebox(ctx, base_dir):
-    """Store GnuPG-encrypted files in Amazon Glacier."""
+    """Encrypting command-line client for Amazon Glacier."""
     if os.environ.get('ICEBOX_DEBUG') == 'true':
         logging.basicConfig(format=LOG_FORMAT)
         logging.getLogger('app').setLevel(logging.DEBUG)

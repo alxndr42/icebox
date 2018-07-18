@@ -23,11 +23,11 @@ setup(
     packages=find_packages(exclude=['contrib', 'docs', 'tests', 'tmp']),
     entry_points={'console_scripts': ['icebox=app.cli:icebox']},
 
-    author='',
-    author_email='',
+    author='Alexander Dietrich',
+    author_email='alexander@dietrich.cx',
     description='Encrypting command-line client for Amazon Glacier.',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='',
+    url='https://github.com/7adietri/icebox',
     license='GPLv3+',
 )
