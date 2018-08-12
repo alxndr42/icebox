@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 "boto3" = "*"
 "e1839a8" = {path = ".", editable = true}
+bandit = "*"
 click = "*"
 pycodestyle = "*"
 pytest = "*"
