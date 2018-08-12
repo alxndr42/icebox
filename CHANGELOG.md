@@ -1,6 +1,10 @@
 Changelog
 =========
 
+0.3.1
+-----
+* Fix missing inventory jobs not being deleted
+
 0.3.0
 -----
 * Use SQLite to store source metadata and job keys
