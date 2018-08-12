@@ -2,6 +2,7 @@ import json
 import shutil
 
 import boto3
+from botocore.exceptions import ClientError
 from botocore.utils import calculate_tree_hash
 
 from app.data import JobStatus
@@ -115,7 +116,10 @@ class Backend():
     def _job_status(self, job_key):
         """Return the JobStatus of the given job."""
         job = self.vault.Job(job_key)
-        job.load()
+        try:
+            job.load()
+        except ClientError as e:
+            return JobStatus.failure
         if job.status_code == 'Succeeded':
             return JobStatus.success
         elif job.status_code == 'Failed':

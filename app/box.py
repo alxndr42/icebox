@@ -186,7 +186,7 @@ class Box():
             time.sleep(60)
             status = backend.inventory_status(inventory_job)
         if status == JobStatus.failure:
-            self._db.delete_job(inventory_job)
+            self._db.delete_job(INVENTORY_JOB)
             raise Exception('Inventory job failed.')
 
         sources = self.sources()
