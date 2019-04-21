@@ -1,6 +1,10 @@
 Changelog
 =========
 
+0.3.3
+-----
+* Update dependencies
+
 0.3.2
 -----
 * Update dependencies
