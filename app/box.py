@@ -118,6 +118,9 @@ class Box():
 
     def retrieve(self, name, dst_path, backend_options):
         """Retrieve source from the backend and decrypt."""
+        if dst_path.joinpath(name).exists():
+            raise Exception(f'{name} already exists.')
+
         data_path = None
         backend = self.backend()
         try:
