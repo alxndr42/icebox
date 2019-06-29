@@ -12,12 +12,12 @@ setup(
     name=NAME,
     version=VERSION,
 
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     install_requires=[
-        'boto3>=1.7.40',
-        'click>=6.7',
-        'python-gnupg>=0.4.3',
-        'pyyaml>=3.12',
+        'boto3>=1.9',
+        'click>=7.0',
+        'python-gnupg>=0.4',
+        'pyyaml>=5.1',
     ],
 
     packages=find_packages(exclude=['contrib', 'docs', 'tests', 'tmp']),
@@ -25,7 +25,7 @@ setup(
 
     author='Alexander Dietrich',
     author_email='alexander@dietrich.cx',
-    description='Encrypting command-line client for Amazon Glacier.',
+    description='Encrypting cold storage archiver for Amazon S3 and Glacier.',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/7adietri/icebox',
