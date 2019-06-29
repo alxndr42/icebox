@@ -5,17 +5,16 @@ name = "pypi"
 
 [packages]
 "boto3" = "*"
-"e1839a8" = {path = ".", editable = true}
-bandit = "*"
 click = "*"
+python-gnupg = "*"
+pyyaml = "*"
+
+[dev-packages]
+bandit = "*"
 pycodestyle = "*"
 pytest = "*"
 pytest-datadir = "*"
-python-gnupg = "*"
-pyyaml = "*"
 twine = "*"
-
-[dev-packages]
 
 [requires]
 python_version = "3.6"
