@@ -17,11 +17,13 @@ class Backend():
         """Optional box initialization at creation time."""
         pass
 
-    def store(self, src_path, name):
-        """Store the given file under the name, return a retrieval key."""
-        dst_path = self.folder_path.joinpath(name)
-        shutil.copy(str(src_path), str(dst_path))
-        return name
+    def store_data(self, src_path, name):
+        """Store the data file as name, return a retrieval key."""
+        return self._store(src_path, name)
+
+    def store_meta(self, src_path, name):
+        """Store the metadata file as name, return a retrieval key."""
+        return self._store(src_path, name)
 
     def retrieve_init(self, retrieval_key, options):
         """Initiate a retrieval job, return the job key."""
@@ -61,3 +63,9 @@ class Backend():
             return {c.name: c.name for c in self.folder_path.iterdir()}
         else:
             return {}
+
+    def _store(self, src_path, name):
+        """Store the file at src_path as name, return a retrieval key."""
+        dst_path = self.folder_path.joinpath(name)
+        shutil.copy(str(src_path), str(dst_path))
+        return name

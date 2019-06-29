@@ -30,29 +30,13 @@ class Backend():
         """Optional box initialization at creation time."""
         self.vault.last_inventory_date  # Quick access test
 
-    def store(self, src_path, name):
-        """Store the given file under the name, return a retrieval key."""
-        size = src_path.stat().st_size
-        if size < MULTIPART_LIMIT:
-            with open(src_path, 'rb') as f:
-                result = self.vault.upload_archive(
-                    archiveDescription=name, body=f)
-            archive_id = result.id
-        else:
-            mpu = self.vault.initiate_multipart_upload(
-                archiveDescription=name, partSize=str(PART_SIZE))
-            offset = 0
-            with open(src_path, 'rb') as f:
-                treehash = calculate_tree_hash(f)
-                while offset < size:
-                    max_offset = min(size, offset + PART_SIZE)
-                    r = 'bytes {}-{}/*'.format(offset, max_offset - 1)
-                    w = OffsetRangeWrapper(f, offset, max_offset)
-                    mpu.upload_part(range=r, body=w)
-                    offset += PART_SIZE
-            result = mpu.complete(archiveSize=str(size), checksum=treehash)
-            archive_id = result['archiveId']
-        return archive_id
+    def store_data(self, src_path, name):
+        """Store the data file as name, return a retrieval key."""
+        return self._store(src_path, name)
+
+    def store_meta(self, src_path, name):
+        """Store the metadata file as name, return a retrieval key."""
+        return self._store(src_path, name)
 
     def retrieve_init(self, retrieval_key, options):
         """Initiate a retrieval job, return the job key."""
@@ -126,3 +110,27 @@ class Backend():
             return JobStatus.failure
         else:
             return JobStatus.running
+
+    def _store(self, src_path, name):
+        """Store the file at src_path as name, return a retrieval key."""
+        size = src_path.stat().st_size
+        if size < MULTIPART_LIMIT:
+            with open(src_path, 'rb') as f:
+                result = self.vault.upload_archive(
+                    archiveDescription=name, body=f)
+            archive_id = result.id
+        else:
+            mpu = self.vault.initiate_multipart_upload(
+                archiveDescription=name, partSize=str(PART_SIZE))
+            offset = 0
+            with open(src_path, 'rb') as f:
+                treehash = calculate_tree_hash(f)
+                while offset < size:
+                    max_offset = min(size, offset + PART_SIZE)
+                    r = 'bytes {}-{}/*'.format(offset, max_offset - 1)
+                    w = OffsetRangeWrapper(f, offset, max_offset)
+                    mpu.upload_part(range=r, body=w)
+                    offset += PART_SIZE
+            result = mpu.complete(archiveSize=str(size), checksum=treehash)
+            archive_id = result['archiveId']
+        return archive_id

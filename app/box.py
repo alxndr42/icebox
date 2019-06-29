@@ -103,8 +103,8 @@ class Box():
         try:
             source = self.gpg.decrypt_meta(meta_path)
             LOG.debug('Storing %s', source.name)
-            source.data_key = backend.store(data_path, data_name)
-            source.meta_key = backend.store(meta_path, meta_name)
+            source.data_key = backend.store_data(data_path, data_name)
+            source.meta_key = backend.store_meta(meta_path, meta_name)
             LOG.debug('Stored %s', source.name)
             self._db.save_source(source)
         except Exception as e:
