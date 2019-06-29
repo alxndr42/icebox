@@ -130,8 +130,9 @@ class Box():
 
             # Wait until job is done
             status = backend.retrieve_status(key)
-            while status == JobStatus.running:
+            if status == JobStatus.running:
                 LOG.debug('Retrieve pending for %s', name)
+            while status == JobStatus.running:
                 time.sleep(60)
                 status = backend.retrieve_status(key)
             self._db.delete_job(name)
@@ -181,8 +182,9 @@ class Box():
             inventory_job = backend.inventory_init()
             self._db.save_job(INVENTORY_JOB, inventory_job)
         status = backend.inventory_status(inventory_job)
-        while status == JobStatus.running:
+        if status == JobStatus.running:
             LOG.debug('Inventory pending')
+        while status == JobStatus.running:
             time.sleep(60)
             status = backend.inventory_status(inventory_job)
         if status == JobStatus.failure:
