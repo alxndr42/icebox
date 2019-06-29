@@ -20,7 +20,7 @@ LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s %(message)s'
     type=click.Path(file_okay=False))
 @click.pass_context
 def icebox(ctx, base_dir):
-    """Encrypting command-line client for Amazon Glacier."""
+    """Encrypting cold storage archiver for Amazon S3 and Glacier."""
     if os.environ.get('ICEBOX_DEBUG') == 'true':
         logging.basicConfig(format=LOG_FORMAT)
         logging.getLogger('app').setLevel(logging.DEBUG)
@@ -75,20 +75,51 @@ def init_folder(ctx, folder_path):
 
 @init.command('glacier')
 @click.argument('vault')
-@click.option('--profile', '-p', help='AWS profile', default='default')
 @click.option(
     '--tier', '-t',
-    help='Default retrieval tier',
-    type=click.Choice(['Expedited', 'Standard', 'Bulk']),
+    help='Retrieval tier (default: Standard)',
+    type=click.Choice(['Standard', 'Bulk']),
     default='Standard')
+@click.option('--profile', '-p', help='AWS profile', default='default')
 @click.pass_context
-def init_glacier(ctx, vault, profile, tier):
+def init_glacier(ctx, vault, tier, profile):
     """Create an Amazon Glacier-backed box."""
     box = ctx.obj['box']
     box.config['backend'] = 'glacier'
     box.config['vault'] = vault
-    box.config['profile'] = profile
     box.config['tier'] = tier
+    box.config['profile'] = profile
+    try:
+        box.init()
+    except Exception as e:
+        msg = 'Box initialization failed. ({})'.format(e)
+        click.echo(msg)
+        ctx.exit(1)
+    click.echo('Box initialized.')
+
+
+@init.command('s3')
+@click.argument('bucket')
+@click.option(
+    '--storage-class', '-c',
+    help='Storage class for data (default: GLACIER)',
+    type=click.Choice(['GLACIER', 'DEEP_ARCHIVE']),
+    default='GLACIER')
+@click.option(
+    '--tier', '-t',
+    help='Retrieval tier (default: Standard)',
+    type=click.Choice(['Standard', 'Bulk']),
+    default='Standard')
+@click.option('--profile', '-p', help='AWS profile', default='default')
+@click.pass_context
+def init_s3(ctx, bucket, storage_class, tier, profile):
+    """Create an Amazon S3-backed box."""
+    box = ctx.obj['box']
+    box.config['backend'] = 's3'
+    box.config['bucket'] = bucket
+    box.config['storage_class'] = storage_class
+    box.config['tier'] = tier
+    box.config['profile'] = profile
     try:
         box.init()
     except Exception as e:
