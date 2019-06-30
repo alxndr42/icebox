@@ -1,6 +1,11 @@
 Changelog
 =========
 
+0.4.0
+-----
+* Add S3 backend
+* Update dependencies
+
 0.3.3
 -----
 * Update dependencies
