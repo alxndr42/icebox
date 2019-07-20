@@ -138,13 +138,14 @@ class Box():
             while status == JobStatus.running:
                 time.sleep(60)
                 status = backend.retrieve_status(key)
-            self._db.delete_job(name)
             if status == JobStatus.failure:
+                self._db.delete_job(name)
                 raise Exception('Retrieval job failed.')
 
             # Download the data file
             LOG.debug('Retrieving %s', name)
             data_path = backend.retrieve_finish(key)
+            self._db.delete_job(name)
             LOG.debug('Retrieved %s', name)
 
             # Decrypt original source
