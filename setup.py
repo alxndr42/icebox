@@ -14,10 +14,10 @@ setup(
 
     python_requires='>=3.6',
     install_requires=[
-        'boto3>=1.9',
-        'click>=7.0',
+        'boto3>=1.12',
+        'click>=7.1',
         'python-gnupg>=0.4',
-        'pyyaml>=5.1',
+        'pyyaml>=5.3',
     ],
 
     packages=find_packages(exclude=['contrib', 'docs', 'tests', 'tmp']),
