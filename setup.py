@@ -14,7 +14,7 @@ setup(
 
     python_requires='>=3.6',
     install_requires=[
-        'boto3>=1.12',
+        'boto3>=1.16',
         'click>=7.1',
         'python-gnupg>=0.4',
         'pyyaml>=5.3',

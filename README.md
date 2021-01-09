@@ -29,7 +29,7 @@ i.e. no password prompts blocking the operation.
 
 ### Install icebox
 
-Install icebox using pip (or [pipsi][]):
+Install icebox using pip (or [pipx][]):
 
     pip3 install icebox
 
@@ -100,6 +100,6 @@ continue it later.
 
 [boto]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/quickstart.html#configuration
 [glacier]: https://aws.amazon.com/glacier/
-[pipsi]: https://github.com/mitsuhiko/pipsi
+[pipx]: https://pipxproject.github.io/pipx/
 [pricing]: https://aws.amazon.com/glacier/pricing/
 [s3]: https://aws.amazon.com/s3/storage-classes/#Archive
