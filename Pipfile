@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-"boto3" = "*"
+boto3 = "*"
 click = "*"
 python-gnupg = "*"
 pyyaml = "*"
@@ -15,6 +15,4 @@ pycodestyle = "*"
 pytest = "*"
 pytest-datadir = "*"
 twine = "*"
-
-[requires]
-python_version = "3.8"
+build = "*"

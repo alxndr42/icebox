@@ -1,8 +1,8 @@
 from pathlib import Path
 import shutil
 
-from app.data import JobStatus
-from app.util import File
+from icebox.data import JobStatus
+from icebox.util import File
 
 
 class Backend():

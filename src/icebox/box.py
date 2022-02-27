@@ -5,8 +5,8 @@ import uuid
 
 import yaml
 
-from app.backend import get_backend
-from app.data import JobStatus, Source
+from icebox.backend import get_backend
+from icebox.data import JobStatus, Source
 
 
 DATA_SUFFIX = '.data'

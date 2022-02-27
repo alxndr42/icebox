@@ -5,8 +5,8 @@ import boto3
 from botocore.exceptions import ClientError
 from botocore.utils import calculate_tree_hash
 
-from app.data import JobStatus
-from app.util import File, OffsetRangeWrapper
+from icebox.data import JobStatus
+from icebox.util import File, OffsetRangeWrapper
 
 
 PART_SIZE = 64 * 1024 * 1024

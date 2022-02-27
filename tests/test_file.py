@@ -2,7 +2,7 @@ import io
 
 import pytest
 
-from app.util import OffsetRangeWrapper
+from icebox.util import OffsetRangeWrapper
 
 
 @pytest.fixture

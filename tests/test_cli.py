@@ -3,8 +3,8 @@ import shutil
 from click.testing import CliRunner
 import pytest
 
-from app.box import DATA_SUFFIX, META_SUFFIX
-from app.cli import icebox
+from icebox.box import DATA_SUFFIX, META_SUFFIX
+from icebox.cli import icebox
 
 
 BOX_NAME = 'test'

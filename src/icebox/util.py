@@ -6,7 +6,7 @@ import shutil
 import sys
 import tempfile
 
-from app import NAME
+from icebox import NAME
 
 
 class File():

@@ -2,8 +2,8 @@ import hashlib
 
 import pytest
 
-from app.box import SQLite
-from app.data import Source
+from icebox.box import SQLite
+from icebox.data import Source
 
 
 class TestSQLite():

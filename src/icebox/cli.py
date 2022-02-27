@@ -4,9 +4,9 @@ from pathlib import Path
 
 import click
 
-from app import NAME
-from app.box import get_box
-from app.gpg import GPG
+from icebox import NAME
+from icebox.box import get_box
+from icebox.gpg import GPG
 
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -23,7 +23,7 @@ def icebox(ctx, base_dir):
     """Encrypting cold storage archiver for Amazon S3 and Glacier."""
     if os.environ.get('ICEBOX_DEBUG') == 'true':
         logging.basicConfig(format=LOG_FORMAT)
-        logging.getLogger('app').setLevel(logging.DEBUG)
+        logging.getLogger('icebox').setLevel(logging.DEBUG)
     ctx.obj = {}
     if base_dir is None:
         ctx.obj['base'] = Path(click.get_app_dir(NAME))

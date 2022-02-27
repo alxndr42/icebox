@@ -5,8 +5,8 @@ import shutil
 import gnupg
 import yaml
 
-from app.data import Source
-from app.util import File
+from icebox.data import Source
+from icebox.util import File
 
 
 LOG = logging.getLogger(__name__)
