@@ -20,7 +20,7 @@ LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s %(message)s'
     type=click.Path(file_okay=False))
 @click.pass_context
 def icebox(ctx, base_dir):
-    """Encrypting cold storage archiver for Amazon S3 and Glacier."""
+    """Encrypting Cold Storage Client"""
     if os.environ.get('ICEBOX_DEBUG') == 'true':
         logging.basicConfig(format=LOG_FORMAT)
         logging.getLogger('icebox').setLevel(logging.DEBUG)
@@ -64,31 +64,6 @@ def init_folder(ctx, folder_path):
     box = ctx.obj['box']
     box.config['backend'] = 'folder'
     box.config['folder-path'] = folder_path
-    try:
-        box.init()
-    except Exception as e:
-        msg = 'Box initialization failed. ({})'.format(e)
-        click.echo(msg)
-        ctx.exit(1)
-    click.echo('Box initialized.')
-
-
-@init.command('glacier')
-@click.argument('vault')
-@click.option(
-    '--tier', '-t',
-    help='Retrieval tier (default: Standard)',
-    type=click.Choice(['Standard', 'Bulk']),
-    default='Standard')
-@click.option('--profile', '-p', help='AWS profile', default='default')
-@click.pass_context
-def init_glacier(ctx, vault, tier, profile):
-    """Create an Amazon Glacier-backed box."""
-    box = ctx.obj['box']
-    box.config['backend'] = 'glacier'
-    box.config['vault'] = vault
-    box.config['tier'] = tier
-    box.config['profile'] = profile
     try:
         box.init()
     except Exception as e:

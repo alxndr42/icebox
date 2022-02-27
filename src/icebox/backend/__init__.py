@@ -1,5 +1,4 @@
 import icebox.backend.folder
-import icebox.backend.glacier
 import icebox.backend.s3
 
 
@@ -7,8 +6,6 @@ def get_backend(name, box_path, box_config):
     """Return a backend instance for the given name."""
     if name == 'folder':
         return icebox.backend.folder.Backend(box_path, box_config)
-    elif name == 'glacier':
-        return icebox.backend.glacier.Backend(box_path, box_config)
     elif name == 's3':
         return icebox.backend.s3.Backend(box_path, box_config)
     else:
