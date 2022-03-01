@@ -1,10 +1,15 @@
 import logging
+from shutil import rmtree
 import sqlite3
 import time
 import uuid
 
 import yaml
 
+from icepack import IcepackReader, create_archive, extract_archive
+from icepack.helper import File, SSH, Zip
+
+from icebox import SECRET_KEY
 from icebox.backend import get_backend
 from icebox.data import JobStatus, Source
 
@@ -14,11 +19,10 @@ META_SUFFIX = '.meta'
 
 LOG = logging.getLogger(__name__)
 
-SQL_SCHEMA_VERSION = '1'
+SQL_SCHEMA_VERSION = '2'
 SQL_CREATE_SOURCES = '''CREATE TABLE IF NOT EXISTS sources (
                         name text UNIQUE NOT NULL,
-                        type text NOT NULL,
-                        data_hash text NOT NULL,
+                        comment text,
                         data_key text NOT NULL,
                         meta_key text NOT NULL)
                         '''
@@ -39,7 +43,7 @@ class Box():
 
     def __init__(self, path):
         self.path = path
-        self.path.mkdir(mode=0o770, parents=True, exist_ok=True)
+        self.path.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.config_file = self.path.joinpath('config.yml')
         if self.config_file.exists():
             with open(self.config_file, 'r') as f:
@@ -47,7 +51,6 @@ class Box():
         else:
             self.config = {}
         self._db = SQLite(path)
-        self._gpg = None
 
     def exists(self):
         """Check if a configuration file for this box exists."""
@@ -57,72 +60,42 @@ class Box():
         """Initialize this box on creation."""
         if self.exists():
             raise Exception('Box already initialized.')
-
         backend = self.backend()
         backend.box_init()
-        self._save_config()
-
-    @property
-    def gpg(self):
-        """Get the GPG instance for this box."""
-        if self._gpg is not None:
-            return self._gpg
-        else:
-            raise Exception('No GPG instance.')
-
-    @gpg.setter
-    def gpg(self, value):
-        """Set the GPG instance for this box."""
-        assert value is not None
-        self._gpg = value
-
-    @property
-    def key(self):
-        """Get the GnuPG key ID for this box."""
-        if 'key-id' in self.config:
-            return self.config['key-id']
-        else:
-            raise Exception('No key ID.')
-
-    @key.setter
-    def key(self, value):
-        """Set the GnuPG key ID for this box."""
-        assert value is not None
-        self.config['key-id'] = value
-
-    def _save_config(self):
-        """Save the configuration to file."""
+        SSH.keygen(self.path)
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(self.config, f, default_flow_style=False)
 
-    def store(self, src_path):
+    def store(self, src_path, comment):
         """Encrypt the given source and store in backend."""
-        data_path, meta_path = self.gpg.encrypt(src_path, self.key)
-        data_name, meta_name = _backend_names()
         backend = self.backend()
+        temp_path = File.mktemp(directory=True)
+        data_path = temp_path / (src_path.name + '.zip')
+        meta_path = temp_path / (src_path.name + META_SUFFIX)
         try:
-            source = self.gpg.decrypt_meta(meta_path)
+            create_archive(
+                src_path,
+                data_path,
+                self.path,
+                comment=comment,
+                mode=True,
+                mtime=True)
+            meta_path = _export_metadata(data_path)
+            data_name, meta_name = _backend_names()
+            source = Source(src_path.name)
             LOG.debug('Storing %s', source.name)
+            source.comment = comment
             source.data_key = backend.store_data(data_path, data_name)
             source.meta_key = backend.store_meta(meta_path, meta_name)
             LOG.debug('Stored %s', source.name)
             self._db.save_source(source)
-        except Exception as e:
-            msg = 'Storage operation failed. ({})'.format(e)
-            raise Exception(msg)
         finally:
-            if data_path and data_path.exists():
-                data_path.unlink()
-            if meta_path and meta_path.exists():
-                meta_path.unlink()
+            rmtree(temp_path, ignore_errors=True)
 
     def retrieve(self, name, dst_path, backend_options):
         """Retrieve source from the backend and decrypt."""
-        if dst_path.joinpath(name).exists():
-            raise Exception(f'{name} already exists.')
-
-        data_path = None
         backend = self.backend()
+        data_path = None
         try:
             source = self._db.load_source(name)
             # Get existing retrieval job or start a new one
@@ -130,7 +103,6 @@ class Box():
             if key is None:
                 key = backend.retrieve_init(source.data_key, backend_options)
                 self._db.save_job(name, key)
-
             # Wait until job is done
             status = backend.retrieve_status(key)
             if status == JobStatus.running:
@@ -141,21 +113,21 @@ class Box():
             if status == JobStatus.failure:
                 self._db.delete_job(name)
                 raise Exception('Retrieval job failed.')
-
             # Download the data file
             LOG.debug('Retrieving %s', name)
             data_path = backend.retrieve_finish(key)
             self._db.delete_job(name)
             LOG.debug('Retrieved %s', name)
-
             # Decrypt original source
-            self.gpg.decrypt_data(source, data_path, dst_path)
-        except Exception as e:
-            msg = 'Retrieval operation failed. ({})'.format(e)
-            raise Exception(msg)
+            extract_archive(
+                data_path,
+                dst_path,
+                self.path,
+                mode=True,
+                mtime=True)
         finally:
-            if data_path and data_path.exists():
-                data_path.unlink()
+            if data_path:
+                data_path.unlink(missing_ok=True)
 
     def contains(self, source):
         """Return True if the source name exists in this box."""
@@ -164,14 +136,10 @@ class Box():
     def delete(self, source):
         """Delete encrypted data and metadata in the backend."""
         backend = self.backend()
-        try:
-            src = self._db.load_source(source)
-            backend.delete(src.data_key)
-            backend.delete(src.meta_key)
-            self._db.delete_source(source)
-        except Exception as e:
-            msg = 'Delete operation failed. ({})'.format(e)
-            raise Exception(msg)
+        src = self._db.load_source(source)
+        backend.delete(src.data_key)
+        backend.delete(src.meta_key)
+        self._db.delete_source(source)
 
     def sources(self):
         """Return information about known sources."""
@@ -218,7 +186,12 @@ class Box():
                     raise Exception('Metadata retrieval failed.')
                 elif status == JobStatus.success:
                     meta_path = backend.retrieve_finish(job)
-                    src = self.gpg.decrypt_meta(meta_path)
+                    with IcepackReader(meta_path, self.path) as archive:
+                        name = archive.metadata.archive_name
+                    if name.endswith('.zip'):
+                        name = name[:-4]
+                    src = Source(name)
+                    src.comment = archive.metadata.comment
                     src.data_key = verifier.unknowns[meta_key]
                     src.meta_key = meta_key
                     meta_path.unlink()
@@ -289,7 +262,7 @@ class SQLite():
 
     def load_source(self, name):
         """Return a Source by name."""
-        stmt = '''SELECT name, type, data_hash, data_key, meta_key
+        stmt = '''SELECT name, comment, data_key, meta_key
                   FROM sources
                   WHERE name=?
                   '''
@@ -303,7 +276,7 @@ class SQLite():
 
     def load_sources(self):
         """Return an iterable for all Sources."""
-        stmt = '''SELECT name, type, data_hash, data_key, meta_key
+        stmt = '''SELECT name, comment, data_key, meta_key
                   FROM sources
                   ORDER BY name COLLATE NOCASE
                   '''
@@ -319,14 +292,12 @@ class SQLite():
     def save_source(self, source):
         """Save a Source."""
         stmt = '''INSERT INTO sources
-                  (name, type, data_hash, data_key, meta_key)
-                  VALUES (?, ?, ?, ?, ?)
+                  (name, comment, data_key, meta_key)
+                  VALUES (?, ?, ?, ?)
                   '''
-        data_hash = 'sha256:' + source.sha256
         values = (
             source.name,
-            source.type,
-            data_hash,
+            source.comment,
             source.data_key,
             source.meta_key
         )
@@ -395,14 +366,9 @@ class SQLite():
         """Return a Source for the given row."""
         source = Source()
         source.name = row[0]
-        source.type = row[1]
-        data_hash = row[2]
-        if data_hash.startswith('sha256:'):
-            source.sha256 = data_hash[7:]
-        else:
-            raise Exception('Unsupported data hash: ' + str(data_hash))
-        source.data_key = row[3]
-        source.meta_key = row[4]
+        source.comment = row[1]
+        source.data_key = row[2]
+        source.meta_key = row[3]
         return source
 
 
@@ -419,6 +385,18 @@ def _backend_names():
     data_name = basename + DATA_SUFFIX
     meta_name = basename + META_SUFFIX
     return data_name, meta_name
+
+
+def _export_metadata(zip_path):
+    """Return the temporary Path to a metadata-only copy of zip_path."""
+    src = Zip(zip_path)
+    meta_path, sig_path = src.extract_metadata()
+    dst_path = File.mktemp()
+    dst = Zip(dst_path, 'w')
+    dst.add_metadata(meta_path, sig_path)
+    dst.close()
+    src.close()
+    return dst_path
 
 
 def _sibling_name(name):

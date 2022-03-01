@@ -1,16 +1,22 @@
 # icebox - Encrypting Cold Storage Client
 
-icebox is a command-line client for storing files and directories in Amazon S3.
-All data is encrypted using GnuPG before being uploaded and no original
-filenames will be visible remotely.
+icebox is a command-line client for secure online file storage. All metadata is
+protected from unauthorized access, by using [icepack][] for archive handling.
+
+Supported storage backends:
+
+- Amazon S3 (`Glacier Deep Archive` storage class)
+- Local folder (for testing or third-party tools)
+
+[icepack]: https://github.com/alxndr42/icepack
 
 ## Installation
 
 Requirements:
 
-- AWS credentials with write access to S3
-- GnuPG public/private keypair
 - Python 3.8
+- age 1.0
+- OpenSSH 8.0
 
 Install with `pip` or [pipx][]:
 
@@ -29,12 +35,6 @@ example [IAM policy][] for recommended permissions.
 [boto]: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/quickstart.html#configuration
 [iam policy]: docs/iam-policy.example.json
 
-### GnuPG keypair
-
-Create a keypair for icebox and make a note of the ID. Retrieval operations
-can take a long time, so you should make sure the keypair stays accessible,
-i.e. no password prompts blocking the operation.
-
 ## Usage
 
 ### Create a new box
@@ -42,16 +42,16 @@ i.e. no password prompts blocking the operation.
 Create the box *mybox* for an S3 bucket called *mybucket*:
 
 ```
-$ icebox init mybox 0xMYKEYID s3 mybucket
+$ icebox init mybox s3 mybucket
 ```
 
 Check out the available options:
 
 ```
-$ icebox init mybox 0xMYKEYID s3 --help
+$ icebox init mybox s3 --help
 ```
 
-**Please note:** encrypted metadata (1-2 KB per `put` operation) is stored
+**Please note:** encrypted metadata (multiple KB per `put` operation) is stored
 using the `Standard` storage class.
 
 ### Store data in a box

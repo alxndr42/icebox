@@ -12,25 +12,22 @@ class JobStatus(Enum):
 class Source():
     """Local information on a stored source."""
 
-    def __init__(self):
-        self.name = None
-        self.type = None
-        self.sha256 = None
+    def __init__(self, name=None):
+        self.name = name
+        self.comment = None
         self.data_key = None
         self.meta_key = None
 
-    def __eq__(self, source2):
+    def __eq__(self, other):
         """Comparison method."""
-        if not isinstance(source2, Source):
+        if not isinstance(other, Source):
             return False
-        if self.name != source2.name:
+        if self.name != other.name:
             return False
-        if self.type != source2.type:
+        if self.comment != other.comment:
             return False
-        if self.sha256 != source2.sha256:
+        if self.data_key != other.data_key:
             return False
-        if self.data_key != source2.data_key:
-            return False
-        if self.meta_key != source2.meta_key:
+        if self.meta_key != other.meta_key:
             return False
         return True

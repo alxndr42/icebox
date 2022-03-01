@@ -81,7 +81,6 @@ class FakeSource(Source):
     def __init__(self, name):
         super().__init__()
         self.name = name
-        self.type = 'file'
-        self.sha256 = hashlib.sha256(name.encode()).hexdigest()
-        self.data_key = 'data:' + self.sha256
-        self.meta_key = 'meta:' + self.sha256
+        name_hash = hashlib.sha256(name.encode()).hexdigest()
+        self.data_key = 'data:' + name_hash
+        self.meta_key = 'meta:' + name_hash

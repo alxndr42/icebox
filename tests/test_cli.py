@@ -8,7 +8,6 @@ from icebox.cli import icebox
 
 
 BOX_NAME = 'test'
-KEY_ID = 'B1448632CDD25B97D823F1556CF1AB048EFFA419'
 
 
 class TestFolderBackend():
@@ -56,12 +55,6 @@ class TestFolderBackend():
         cli.init()
         with pytest.raises(AssertionError) as e:
             cli.init()
-
-    def test_invalid_key(self, datadir):
-        """Try to create a box with an invalid key."""
-        cli = CliWrapper(datadir)
-        with pytest.raises(AssertionError) as e:
-            cli.init(key='nosuchkey')
 
     def test_invalid_folder(self, datadir):
         """Try to create a box with an invalid folder."""
@@ -146,14 +139,14 @@ class CliWrapper():
     def backend(self):
         return self._backend
 
-    def init(self, box=BOX_NAME, key=KEY_ID, folder=None):
+    def init(self, box=BOX_NAME, folder=None):
         """Run the init command."""
         base = str(self._base)
         if folder is None:
             folder = str(self._backend)
         result = self._runner.invoke(
             icebox,
-            ['-b', base, 'init', box, key, 'folder', folder])
+            ['-c', base, 'init', box, 'folder', folder])
         print(result.output)
         assert result.exit_code == 0
 
@@ -163,7 +156,7 @@ class CliWrapper():
         path = str(self._input.joinpath(source))
         result = self._runner.invoke(
             icebox,
-            ['-b', base, 'put', box, path])
+            ['-c', base, 'put', box, path])
         print(result.output)
         assert result.exit_code == 0
 
@@ -173,7 +166,7 @@ class CliWrapper():
         output = str(self._output)
         result = self._runner.invoke(
             icebox,
-            ['-b', base, 'get', box, source, '-d', output])
+            ['-c', base, 'get', box, source, '-d', output])
         print(result.output)
         assert result.exit_code == 0
         return self._output.joinpath(source)
@@ -183,7 +176,7 @@ class CliWrapper():
         base = str(self._base)
         result = self._runner.invoke(
             icebox,
-            ['-b', base, 'delete', box, source])
+            ['-c', base, 'delete', box, source])
         print(result.output)
         assert result.exit_code == 0
 
@@ -192,7 +185,7 @@ class CliWrapper():
         base = str(self._base)
         result = self._runner.invoke(
             icebox,
-            ['-b', base, 'list', box])
+            ['-c', base, 'list', box])
         print(result.output)
         assert result.exit_code == 0
         return result.output
@@ -202,6 +195,6 @@ class CliWrapper():
         base = str(self._base)
         result = self._runner.invoke(
             icebox,
-            ['-b', base, 'refresh', box])
+            ['-c', base, 'refresh', box])
         print(result.output)
         assert result.exit_code == 0

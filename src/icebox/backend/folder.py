@@ -1,8 +1,9 @@
 from pathlib import Path
 import shutil
 
+from icepack.helper import File
+
 from icebox.data import JobStatus
-from icebox.util import File
 
 
 class Backend():
@@ -11,7 +12,7 @@ class Backend():
     def __init__(self, box_path, box_config):
         self.box_path = box_path
         self.box_config = box_config
-        self.folder_path = Path(box_config['folder-path'])
+        self.folder_path = Path(box_config['folder_path'])
 
     def box_init(self):
         """Optional box initialization at creation time."""
@@ -47,7 +48,7 @@ class Backend():
     def delete(self, retrieval_key):
         """Delete the data for the given retrieval key."""
         file_path = self.folder_path.joinpath(retrieval_key)
-        file_path.unlink()
+        file_path.unlink(missing_ok=True)
 
     def inventory_init(self):
         """Initiate an inventory job, return the job key."""

@@ -6,86 +6,75 @@ import click
 
 from icebox import NAME
 from icebox.box import get_box
-from icebox.gpg import GPG
 
 
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s %(message)s'
 
 
-@click.group(context_settings=CONTEXT_SETTINGS)
+@click.group()
 @click.option(
-    '--base-dir', '-b',
-    help='Base directory for configuration data.',
+    '--config', '-c',
+    help='Base configuration directory.',
     type=click.Path(file_okay=False))
 @click.pass_context
-def icebox(ctx, base_dir):
+def icebox(ctx, config):
     """Encrypting Cold Storage Client"""
     if os.environ.get('ICEBOX_DEBUG') == 'true':
         logging.basicConfig(format=LOG_FORMAT)
-        logging.getLogger('icebox').setLevel(logging.DEBUG)
+        logging.getLogger(NAME).setLevel(logging.DEBUG)
     ctx.obj = {}
-    if base_dir is None:
-        ctx.obj['base'] = Path(click.get_app_dir(NAME))
+    if config is None:
+        base_path = Path(click.get_app_dir(NAME))
     else:
-        ctx.obj['base'] = Path(base_dir)
+        base_path = Path(config)
+    base_path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    ctx.obj['base_path'] = base_path
 
 
 @icebox.group()
 @click.argument('box-name')
-@click.argument('key-id')
 @click.pass_context
-def init(ctx, box_name, key_id):
+def init(ctx, box_name):
     """Create a new box."""
-    base_path = ctx.obj['base']
+    base_path = ctx.obj['base_path']
     box = get_box(base_path, box_name)
     if box.exists():
-        click.echo('Box already exists.')
-        ctx.exit(1)
-
-    gpg = GPG(base_path.joinpath('GPG'))
-    if not gpg.valid_key_id(key_id):
-        click.echo('Invalid key ID.')
-        ctx.exit(1)
-
-    box.gpg = gpg
-    box.key = key_id
+        raise click.ClickException('Box already exists.')
     ctx.obj['box'] = box
 
 
 @init.command('folder')
 @click.argument(
     'folder-path',
-    type=click.Path(
-        exists=True, file_okay=False, resolve_path=True, writable=True))
+    type=click.Path(exists=True, file_okay=False, writable=True))
 @click.pass_context
 def init_folder(ctx, folder_path):
     """Create a folder-backed box."""
     box = ctx.obj['box']
     box.config['backend'] = 'folder'
-    box.config['folder-path'] = folder_path
+    box.config['folder_path'] = folder_path
     try:
         box.init()
     except Exception as e:
-        msg = 'Box initialization failed. ({})'.format(e)
-        click.echo(msg)
-        ctx.exit(1)
+        raise click.ClickException('Initialization failed. ({})'.format(e))
     click.echo('Box initialized.')
+    click.echo(f'Your encryption keys are in {box.path}')
+    click.echo('Make sure to protect and backup this directory!')
 
 
 @init.command('s3')
 @click.argument('bucket')
 @click.option(
-    '--storage-class', '-c',
-    help='Storage class for data (default: GLACIER)',
+    '--class', '-c', 'storage_class',
+    help='Storage class. (Default: DEEP_ARCHIVE)',
     type=click.Choice(['GLACIER', 'DEEP_ARCHIVE']),
-    default='GLACIER')
+    default='DEEP_ARCHIVE')
 @click.option(
     '--tier', '-t',
-    help='Retrieval tier (default: Standard)',
+    help='Retrieval tier. (Default: Bulk)',
     type=click.Choice(['Standard', 'Bulk']),
-    default='Standard')
-@click.option('--profile', '-p', help='AWS profile', default='default')
+    default='Bulk')
+@click.option('--profile', '-p', help='AWS profile.', default='default')
 @click.pass_context
 def init_s3(ctx, bucket, storage_class, tier, profile):
     """Create an Amazon S3-backed box."""
@@ -98,38 +87,33 @@ def init_s3(ctx, bucket, storage_class, tier, profile):
     try:
         box.init()
     except Exception as e:
-        msg = 'Box initialization failed. ({})'.format(e)
-        click.echo(msg)
-        ctx.exit(1)
+        raise click.ClickException('Initialization failed. ({})'.format(e))
     click.echo('Box initialized.')
+    click.echo(f'Your encryption keys are in {box.path}')
+    click.echo('Make sure to protect and backup this directory!')
 
 
 @icebox.command()
 @click.argument('box-name')
 @click.argument('source', type=click.Path(exists=True))
+@click.option('--comment', help='Source comment.')
 @click.pass_context
-def put(ctx, box_name, source):
+def put(ctx, box_name, source, comment):
     """Store data in a box."""
-    base_path = ctx.obj['base']
+    base_path = ctx.obj['base_path']
     box = get_box(base_path, box_name)
     if not box.exists():
-        click.echo('Box not found.')
-        ctx.exit(1)
-
+        raise click.ClickException('Box not found.')
     src_path = Path(source)
     src_name = src_path.name
     if box.contains(src_name):
-        click.echo('Source already exists in box.')
-        ctx.exit(1)
-
-    click.echo('Storing {} in box.'.format(src_name))
+        raise click.ClickException('Source already exists in box.')
+    click.echo(f'Storing {src_name} in box.')
     try:
-        box.gpg = GPG(base_path.joinpath('GPG'))
-        box.store(src_path)
+        box.store(src_path, comment)
     except Exception as e:
-        click.echo(str(e))
-        ctx.exit(1)
-    click.echo('Stored {} in box.'.format(src_name))
+        raise click.ClickException(f'Operation failed. ({e})')
+    click.echo(f'Stored {src_name} in box.')
 
 
 @icebox.command()
@@ -137,9 +121,8 @@ def put(ctx, box_name, source):
 @click.argument('source')
 @click.option(
     '--destination', '-d',
-    help='Destination (default: current directory)',
-    type=click.Path(
-        exists=True, file_okay=False, resolve_path=True, writable=True),
+    help='Destination directory. (Default: Current directory)',
+    type=click.Path(exists=True, file_okay=False, writable=True),
     default='.')
 @click.option(
     '--option', '-o',
@@ -148,26 +131,20 @@ def put(ctx, box_name, source):
 @click.pass_context
 def get(ctx, box_name, source, destination, option):
     """Retrieve data from a box."""
-    base_path = ctx.obj['base']
+    base_path = ctx.obj['base_path']
     box = get_box(base_path, box_name)
     if not box.exists():
-        click.echo('Box not found.')
-        ctx.exit(1)
-
+        raise click.ClickException('Box not found.')
     if not box.contains(source):
-        click.echo('Source not found in box.')
-        ctx.exit(1)
-
-    click.echo('Retrieving {} from box.'.format(source))
+        raise click.ClickException('Source not found in box.')
+    click.echo(f'Retrieving {source} from box.')
     dst_path = Path(destination)
     backend_options = dict(o.split('=') for o in option)
     try:
-        box.gpg = GPG(base_path.joinpath('GPG'))
         box.retrieve(source, dst_path, backend_options)
     except Exception as e:
-        click.echo(str(e))
-        ctx.exit(1)
-    click.echo('Retrieved {} from box.'.format(source))
+        raise click.ClickException(f'Operation failed. ({e})')
+    click.echo(f'Retrieved {source} from box.')
 
 
 @icebox.command()
@@ -176,22 +153,17 @@ def get(ctx, box_name, source, destination, option):
 @click.pass_context
 def delete(ctx, box_name, source):
     """Delete data from a box."""
-    base_path = ctx.obj['base']
+    base_path = ctx.obj['base_path']
     box = get_box(base_path, box_name)
     if not box.exists():
-        click.echo('Box not found.')
-        ctx.exit(1)
-
+        raise click.ClickException('Box not found.')
     if not box.contains(source):
-        click.echo('Source not found in box.')
-        ctx.exit(1)
-
+        raise click.ClickException('Source not found in box.')
     try:
         box.delete(source)
     except Exception as e:
-        click.echo(str(e))
-        ctx.exit(1)
-    click.echo('Deleted {} from box.'.format(source))
+        raise click.ClickException(f'Operation failed. ({e})')
+    click.echo(f'Deleted {source} from box.')
 
 
 @icebox.command()
@@ -199,14 +171,15 @@ def delete(ctx, box_name, source):
 @click.pass_context
 def list(ctx, box_name):
     """List the data in a box."""
-    base_path = ctx.obj['base']
+    base_path = ctx.obj['base_path']
     box = get_box(base_path, box_name)
     if not box.exists():
-        click.echo('Box not found.')
-        ctx.exit(1)
-
+        raise click.ClickException('Box not found.')
     for source in box.sources():
-        click.echo(source.name)
+        if source.comment:
+            click.echo(f'{source.name} ({source.comment})')
+        else:
+            click.echo(source.name)
 
 
 @icebox.command()
@@ -218,16 +191,13 @@ def list(ctx, box_name):
 @click.pass_context
 def refresh(ctx, box_name, option):
     """Refresh local information for a box."""
-    base_path = ctx.obj['base']
+    base_path = ctx.obj['base_path']
     box = get_box(base_path, box_name)
     if not box.exists():
-        click.echo('Box not found.')
-        ctx.exit(1)
-
+        raise click.ClickException('Box not found.')
     click.echo('Refreshing box.')
     backend_options = dict(o.split('=') for o in option)
     try:
-        box.gpg = GPG(base_path.joinpath('GPG'))
         duplicates, singles = box.refresh(backend_options)
         for d in duplicates:
             msg = ('WARNING: Duplicate found for {}, data key: "{}", ' +
@@ -237,6 +207,5 @@ def refresh(ctx, box_name, option):
             msg = 'WARNING: Unmatched backend name {}, key: "{}"'
             click.echo(msg.format(name, key))
     except Exception as e:
-        click.echo(str(e))
-        ctx.exit(1)
+        raise click.ClickException(f'Operation failed. ({e})')
     click.echo('Refreshed box.')
