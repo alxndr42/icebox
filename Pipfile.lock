@@ -16,19 +16,19 @@
     "default": {
         "boto3": {
             "hashes": [
-                "sha256:0122f8428a23efd29283c9ec92e7da1a8f35a69ddfd0635131cc5ca558723c4f",
-                "sha256:365156a9e55f08f2394e0bc84fc953f2a200f63adb08091c2ea06d7b025ea80b"
+                "sha256:75709628320cea8ce137975dc33b75213c2e4f6e7cd09e55290de7245e2c79e2",
+                "sha256:c92ec20a670721b5a1bc013b305a84db2b7f9c716653b3056ce7e2fbd2a180ef"
             ],
             "index": "pypi",
-            "version": "==1.21.10"
+            "version": "==1.21.12"
         },
         "botocore": {
             "hashes": [
-                "sha256:7429f6e54851d3f40fa9147ca1517f5f54101865ae4e79ba2095f580ff85333e",
-                "sha256:fc4bf1c71fabd84c35b7fb728268a6f9f491493e9ee7a5efb603425bfe8a0277"
+                "sha256:0174999a04b0a2e42457106093ace9b36fa94772a442d9bcf60750263d1d073e",
+                "sha256:0cd7395311a3fef4aad8df8f511b4f7d221c24ae30934bd5c03458b0fc096d0c"
             ],
             "markers": "python_version >= '3.6'",
-            "version": "==1.24.10"
+            "version": "==1.24.12"
         },
         "click": {
             "hashes": [
@@ -40,11 +40,11 @@
         },
         "icepack": {
             "hashes": [
-                "sha256:12f22f4a17e4bc28250f11dbdf50518aa6018aafe94a8ddce61f3356c5a1e62d",
-                "sha256:b9f8b3a02834e080d4adb96500df32fd5dc5597e16c5266106a712a0ca9dba0c"
+                "sha256:0967dfc868d2aaf7208636bfb236e366fdfe3b43daf8cee40e580a3be718f61e",
+                "sha256:ef28c28c16860bf146cbf978d86f74ce11c8373487b814ec25defd1cd830ed93"
             ],
             "index": "pypi",
-            "version": "==0.6.1"
+            "version": "==0.7.0"
         },
         "jmespath": {
             "hashes": [

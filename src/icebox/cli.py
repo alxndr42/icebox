@@ -4,6 +4,7 @@ from pathlib import Path
 
 import click
 from icepack import Age, SSH
+from icepack.model import Compression
 
 from icebox import NAME, VERSION
 from icebox.box import get_box
@@ -98,8 +99,13 @@ def init_s3(ctx, bucket, storage_class, tier, profile):
 @click.argument('box-name')
 @click.argument('source', type=click.Path(exists=True))
 @click.option('--comment', help='Source comment.')
+@click.option(
+    '--compression', '-c',
+    help=f'Compression for all files. (Default: {Compression.GZ})',
+    type=click.Choice([c.value for c in Compression]),
+    default=Compression.GZ)
 @click.pass_context
-def put(ctx, box_name, source, comment):
+def put(ctx, box_name, source, comment, compression):
     """Store data in a box."""
     base_path = ctx.obj['base_path']
     box = get_box(base_path, box_name)
@@ -111,7 +117,7 @@ def put(ctx, box_name, source, comment):
         raise click.ClickException('Source already exists in box.')
     click.echo(f'Storing {src_name} in box.')
     try:
-        box.store(src_path, comment)
+        box.store(src_path, comment, compression)
     except Exception as e:
         raise click.ClickException(f'Operation failed. ({e})')
     click.echo(f'Stored {src_name} in box.')

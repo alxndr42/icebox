@@ -1,6 +1,7 @@
 import shutil
 
 from click.testing import CliRunner
+from icepack.model import Compression
 import pytest
 
 from icebox import NAME, VERSION
@@ -19,6 +20,26 @@ class TestFolderBackend():
         cli = CliWrapper(datadir)
         cli.init()
         cli.put('test')
+        file = cli.get('test')
+        assert file.is_file()
+        content = file.read_text(encoding='utf-8')
+        assert content == 'test\n'
+
+    def test_file_bz2_compression(self, datadir):
+        """Store and retrieve a file with "bz2" compression."""
+        cli = CliWrapper(datadir)
+        cli.init()
+        cli.put('test', compression=Compression.BZ2)
+        file = cli.get('test')
+        assert file.is_file()
+        content = file.read_text(encoding='utf-8')
+        assert content == 'test\n'
+
+    def test_file_none_compression(self, datadir):
+        """Store and retrieve a file with "none" compression."""
+        cli = CliWrapper(datadir)
+        cli.init()
+        cli.put('test', compression=Compression.NONE)
         file = cli.get('test')
         assert file.is_file()
         content = file.read_text(encoding='utf-8')
@@ -157,7 +178,7 @@ class CliWrapper():
         print(result.output)
         assert result.exit_code == 0
 
-    def put(self, source, box=BOX_NAME):
+    def put(self, source, box=BOX_NAME, compression=Compression.GZ):
         """Run the put command."""
         base = str(self._base)
         path = str(self._input.joinpath(source))

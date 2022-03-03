@@ -8,6 +8,7 @@ import yaml
 
 from icepack import IcepackReader, create_archive, extract_archive
 from icepack.helper import File, SSH, Zip
+from icepack.model import Compression
 
 from icebox import SECRET_KEY
 from icebox.backend import get_backend
@@ -66,7 +67,7 @@ class Box():
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(self.config, f, default_flow_style=False)
 
-    def store(self, src_path, comment):
+    def store(self, src_path, comment=None, compression=Compression.GZ):
         """Encrypt the given source and store in backend."""
         backend = self.backend()
         temp_path = File.mktemp(directory=True)
@@ -78,6 +79,7 @@ class Box():
                 data_path,
                 self.path,
                 comment=comment,
+                compression=compression,
                 mode=True,
                 mtime=True)
             meta_path = _export_metadata(data_path)
