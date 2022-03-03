@@ -374,13 +374,6 @@ class SQLite():
         return source
 
 
-def get_box(base_path, box_name):
-    """Return a Box instance for the given base directory and name."""
-    box_path = base_path.joinpath(box_name)
-    box = Box(box_path)
-    return box
-
-
 def _backend_names():
     """Return a tuple of names for encrypted data and metadata files."""
     basename = str(uuid.uuid4())

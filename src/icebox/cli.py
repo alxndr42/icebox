@@ -7,7 +7,7 @@ from icepack import Age, SSH
 from icepack.model import Compression
 
 from icebox import NAME, VERSION
-from icebox.box import get_box
+from icebox.box import Box
 
 
 LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s %(message)s'
@@ -39,7 +39,7 @@ def icebox(ctx, config):
 def init(ctx, box_name):
     """Create a new box."""
     base_path = ctx.obj['base_path']
-    box = get_box(base_path, box_name)
+    box = Box(base_path.joinpath(box_name))
     if box.exists():
         raise click.ClickException('Box already exists.')
     ctx.obj['box'] = box
@@ -108,7 +108,7 @@ def init_s3(ctx, bucket, storage_class, tier, profile):
 def put(ctx, box_name, source, comment, compression):
     """Store data in a box."""
     base_path = ctx.obj['base_path']
-    box = get_box(base_path, box_name)
+    box = Box(base_path.joinpath(box_name))
     if not box.exists():
         raise click.ClickException('Box not found.')
     src_path = Path(source)
@@ -139,7 +139,7 @@ def put(ctx, box_name, source, comment, compression):
 def get(ctx, box_name, source, destination, option):
     """Retrieve data from a box."""
     base_path = ctx.obj['base_path']
-    box = get_box(base_path, box_name)
+    box = Box(base_path.joinpath(box_name))
     if not box.exists():
         raise click.ClickException('Box not found.')
     if not box.contains(source):
@@ -161,7 +161,7 @@ def get(ctx, box_name, source, destination, option):
 def delete(ctx, box_name, source):
     """Delete data from a box."""
     base_path = ctx.obj['base_path']
-    box = get_box(base_path, box_name)
+    box = Box(base_path.joinpath(box_name))
     if not box.exists():
         raise click.ClickException('Box not found.')
     if not box.contains(source):
@@ -179,7 +179,7 @@ def delete(ctx, box_name, source):
 def list(ctx, box_name):
     """List the data in a box."""
     base_path = ctx.obj['base_path']
-    box = get_box(base_path, box_name)
+    box = Box(base_path.joinpath(box_name))
     if not box.exists():
         raise click.ClickException('Box not found.')
     for source in box.sources():
@@ -199,7 +199,7 @@ def list(ctx, box_name):
 def refresh(ctx, box_name, option):
     """Refresh local information for a box."""
     base_path = ctx.obj['base_path']
-    box = get_box(base_path, box_name)
+    box = Box(base_path.joinpath(box_name))
     if not box.exists():
         raise click.ClickException('Box not found.')
     click.echo('Refreshing box.')
