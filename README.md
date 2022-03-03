@@ -109,3 +109,14 @@ $ icebox refresh mybox
 
 Refresh operations are tracked by icebox, so you can interrupt a refresh and
 continue it later.
+
+### Check the version and dependencies
+
+```
+$ icebox version --dependencies
+icebox 0.4.0
+✅ age found. (Version: v1.0.0)
+✅ age-keygen found.
+✅ ssh found. (Version: OpenSSH_8.2p1)
+✅ ssh-keygen found.
+```

@@ -3,8 +3,9 @@ import os
 from pathlib import Path
 
 import click
+from icepack import Age, SSH
 
-from icebox import NAME
+from icebox import NAME, VERSION
 from icebox.box import get_box
 
 
@@ -209,3 +210,34 @@ def refresh(ctx, box_name, option):
     except Exception as e:
         raise click.ClickException(f'Operation failed. ({e})')
     click.echo('Refreshed box.')
+
+
+@icebox.command()
+@click.option(
+    '--dependencies', '-d',
+    help='Check the dependencies.',
+    is_flag=True)
+@click.pass_context
+def version(ctx, dependencies):
+    """Show the version information."""
+    click.echo(f'{NAME} {VERSION}')
+    if not dependencies:
+        return
+    age_version, age_keygen = Age.version()
+    if age_version:
+        click.echo(f'✅ age found. (Version: {age_version})')
+    else:
+        click.echo(f'❌ age not found.')
+    if age_keygen:
+        click.echo(f'✅ age-keygen found.')
+    else:
+        click.echo(f'❌ age-keygen not found.')
+    ssh_version, ssh_keygen = SSH.version()
+    if ssh_version:
+        click.echo(f'✅ ssh found. (Version: {ssh_version})')
+    else:
+        click.echo(f'❌ ssh not found.')
+    if ssh_keygen:
+        click.echo(f'✅ ssh-keygen found.')
+    else:
+        click.echo(f'❌ ssh-keygen not found.')

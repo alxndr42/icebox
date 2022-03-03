@@ -3,6 +3,7 @@ import shutil
 from click.testing import CliRunner
 import pytest
 
+from icebox import NAME, VERSION
 from icebox.box import DATA_SUFFIX, META_SUFFIX
 from icebox.cli import icebox
 
@@ -124,6 +125,12 @@ class TestFolderBackend():
         output = cli.list()
         assert output == 'test\n'
 
+    def test_version(key_path, datadir):
+        """Test the version command."""
+        cli = CliWrapper(datadir)
+        output = cli.version()
+        assert output == f'{NAME} {VERSION}\n'
+
 
 class CliWrapper():
     """Execute the CLI with test directories."""
@@ -198,3 +205,13 @@ class CliWrapper():
             ['-c', base, 'refresh', box])
         print(result.output)
         assert result.exit_code == 0
+
+    def version(self):
+        """Run the version command."""
+        base = str(self._base)
+        result = self._runner.invoke(
+            icebox,
+            ['-c', base, 'version'])
+        print(result.output)
+        assert result.exit_code == 0
+        return result.output
