@@ -82,7 +82,7 @@ class Box():
                 compression=compression,
                 mode=True,
                 mtime=True)
-            meta_path = _export_metadata(data_path)
+            _export_metadata(data_path, meta_path)
             data_name, meta_name = _backend_names()
             source = Source(src_path.name)
             LOG.debug('Storing %s', source.name)
@@ -389,16 +389,12 @@ def _backend_names():
     return data_name, meta_name
 
 
-def _export_metadata(zip_path):
-    """Return the temporary Path to a metadata-only copy of zip_path."""
-    src = Zip(zip_path)
-    meta_path, sig_path = src.extract_metadata()
-    dst_path = File.mktemp()
-    dst = Zip(dst_path, 'w')
-    dst.add_metadata(meta_path, sig_path)
-    dst.close()
-    src.close()
-    return dst_path
+def _export_metadata(src_path, dst_path):
+    """Export metadata from src_path to dst_path."""
+    with Zip(src_path) as src:
+        meta_path, sig_path = src.extract_metadata()
+        with Zip(dst_path, 'w') as dst:
+            dst.add_metadata(meta_path, sig_path)
 
 
 def _sibling_name(name):
