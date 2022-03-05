@@ -9,6 +9,7 @@ import yaml
 from icepack import IcepackReader, create_archive, extract_archive
 from icepack.helper import File, SSH, Zip
 from icepack.model import Compression
+from icepack.meta import SECRET_KEY
 
 from icebox import SECRET_KEY
 from icebox.backend import get_backend
@@ -44,14 +45,13 @@ class Box():
 
     def __init__(self, path):
         self.path = path
-        self.path.mkdir(mode=0o700, parents=True, exist_ok=True)
-        self.config_file = self.path.joinpath('config.yml')
-        if self.config_file.exists():
+        self.config_file = self.path / 'config.yml'
+        if self.exists():
             with open(self.config_file, 'r') as f:
                 self.config = yaml.safe_load(f)
+            self._db = SQLite(path)
         else:
             self.config = {}
-        self._db = SQLite(path)
 
     def exists(self):
         """Check if a configuration file for this box exists."""
@@ -61,15 +61,20 @@ class Box():
         """Initialize this box on creation."""
         if self.exists():
             raise Exception('Box already initialized.')
-        backend = self.backend()
+        self.path.mkdir(mode=0o700, parents=True, exist_ok=True)
+        self._db = SQLite(self.path)
+        if not (self.path / SECRET_KEY).exists():
+            SSH.keygen(self.path)
+        backend = self._backend()
         backend.box_init()
-        SSH.keygen(self.path)
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(self.config, f, default_flow_style=False)
 
     def store(self, src_path, comment=None, compression=Compression.GZ):
         """Encrypt the given source and store in backend."""
-        backend = self.backend()
+        if not self.exists():
+            raise Exception('Box not found.')
+        backend = self._backend()
         temp_path = File.mktemp(directory=True)
         data_path = temp_path / (src_path.name + '.zip')
         meta_path = temp_path / (src_path.name + META_SUFFIX)
@@ -96,7 +101,9 @@ class Box():
 
     def retrieve(self, name, dst_path, backend_options):
         """Retrieve source from the backend and decrypt."""
-        backend = self.backend()
+        if not self.exists():
+            raise Exception('Box not found.')
+        backend = self._backend()
         data_path = None
         try:
             source = self._db.load_source(name)
@@ -133,11 +140,15 @@ class Box():
 
     def contains(self, source):
         """Return True if the source name exists in this box."""
+        if not self.exists():
+            raise Exception('Box not found.')
         return self._db.load_source(source) is not None
 
     def delete(self, source):
         """Delete encrypted data and metadata in the backend."""
-        backend = self.backend()
+        if not self.exists():
+            raise Exception('Box not found.')
+        backend = self._backend()
         src = self._db.load_source(source)
         backend.delete(src.data_key)
         backend.delete(src.meta_key)
@@ -145,11 +156,15 @@ class Box():
 
     def sources(self):
         """Return information about known sources."""
+        if not self.exists():
+            raise Exception('Box not found.')
         return self._db.load_sources()
 
     def refresh(self, backend_options):
         """Refresh local information from the backend."""
-        backend = self.backend()
+        if not self.exists():
+            raise Exception('Box not found.')
+        backend = self._backend()
         inventory_job = self._db.load_job(INVENTORY_JOB)
         if inventory_job is None:
             LOG.debug('Initiating inventory job')
@@ -210,7 +225,7 @@ class Box():
         self._db.delete_job(INVENTORY_JOB)
         return duplicates, verifier.backend_singles
 
-    def backend(self):
+    def _backend(self):
         """Return a backend instance for this box."""
         return get_backend(self.config['backend'], self.path, self.config)
 
