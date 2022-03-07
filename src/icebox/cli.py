@@ -104,8 +104,16 @@ def init_s3(ctx, bucket, storage_class, tier, profile):
     help=f'Compression for all files. (Default: {Compression.GZ})',
     type=click.Choice([c.value for c in Compression]),
     default=Compression.GZ)
+@click.option(
+    '--mode',
+    help='Store file/directory modes.',
+    is_flag=True)
+@click.option(
+    '--mtime',
+    help='Store file/directory modification times.',
+    is_flag=True)
 @click.pass_context
-def put(ctx, box_name, source, comment, compression):
+def put(ctx, box_name, source, comment, compression, mode, mtime):
     """Store data in a box."""
     base_path = ctx.obj['base_path']
     box = Box(base_path.joinpath(box_name))
@@ -117,7 +125,7 @@ def put(ctx, box_name, source, comment, compression):
         raise click.ClickException('Source already exists in box.')
     click.echo(f'Storing {src_name} in box.')
     try:
-        box.store(src_path, comment, compression)
+        box.store(src_path, comment, compression, mode, mtime)
     except Exception as e:
         raise click.ClickException(f'Operation failed. ({e})')
     click.echo(f'Stored {src_name} in box.')
@@ -135,8 +143,16 @@ def put(ctx, box_name, source, comment, compression):
     '--option', '-o',
     help='A key=value option for the backend operation.',
     multiple=True)
+@click.option(
+    '--mode',
+    help='Restore file/directory modes.',
+    is_flag=True)
+@click.option(
+    '--mtime',
+    help='Restore file/directory modification times.',
+    is_flag=True)
 @click.pass_context
-def get(ctx, box_name, source, destination, option):
+def get(ctx, box_name, source, destination, option, mode, mtime):
     """Retrieve data from a box."""
     base_path = ctx.obj['base_path']
     box = Box(base_path.joinpath(box_name))
@@ -148,7 +164,7 @@ def get(ctx, box_name, source, destination, option):
     dst_path = Path(destination)
     backend_options = dict(o.split('=') for o in option)
     try:
-        box.retrieve(source, dst_path, backend_options)
+        box.retrieve(source, dst_path, backend_options, mode, mtime)
     except Exception as e:
         raise click.ClickException(f'Operation failed. ({e})')
     click.echo(f'Retrieved {source} from box.')

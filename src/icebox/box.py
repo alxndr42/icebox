@@ -70,7 +70,13 @@ class Box():
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(self.config, f, default_flow_style=False)
 
-    def store(self, src_path, comment=None, compression=Compression.GZ):
+    def store(
+            self,
+            src_path,
+            comment=None,
+            compression=Compression.GZ,
+            mode=False,
+            mtime=False):
         """Encrypt the given source and store in backend."""
         if not self.exists():
             raise Exception('Box not found.')
@@ -85,8 +91,8 @@ class Box():
                 self.path,
                 comment=comment,
                 compression=compression,
-                mode=True,
-                mtime=True)
+                mode=mode,
+                mtime=mtime)
             _export_metadata(data_path, meta_path)
             data_name, meta_name = _backend_names()
             source = Source(src_path.name)
@@ -99,7 +105,13 @@ class Box():
         finally:
             rmtree(temp_path, ignore_errors=True)
 
-    def retrieve(self, name, dst_path, backend_options):
+    def retrieve(
+            self,
+            name,
+            dst_path,
+            backend_options,
+            mode=False,
+            mtime=False):
         """Retrieve source from the backend and decrypt."""
         if not self.exists():
             raise Exception('Box not found.')
@@ -132,8 +144,8 @@ class Box():
                 data_path,
                 dst_path,
                 self.path,
-                mode=True,
-                mtime=True)
+                mode=mode,
+                mtime=mtime)
         finally:
             if data_path:
                 data_path.unlink(missing_ok=True)
