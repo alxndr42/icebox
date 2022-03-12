@@ -1,4 +1,3 @@
-import logging
 import os
 from pathlib import Path
 
@@ -21,9 +20,6 @@ LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s %(message)s'
 @click.pass_context
 def icebox(ctx, config):
     """Encrypting Cold Storage Client"""
-    if os.environ.get('ICEBOX_DEBUG') == 'true':
-        logging.basicConfig(format=LOG_FORMAT)
-        logging.getLogger(NAME).setLevel(logging.DEBUG)
     ctx.obj = {}
     if config is None:
         base_path = Path(click.get_app_dir(NAME))
@@ -55,13 +51,14 @@ def init_folder(ctx, folder_path):
     box = ctx.obj['box']
     box.config['backend'] = 'folder'
     box.config['folder_path'] = folder_path
+    click.echo('Initializing box.')
     try:
-        box.init()
+        box.init(log=click.echo)
     except Exception as e:
         raise click.ClickException('Initialization failed. ({})'.format(e))
+    click.echo(f'- Your encryption keys are in {box.path}')
+    click.echo('- Make sure to protect and backup this directory!')
     click.echo('Box initialized.')
-    click.echo(f'Your encryption keys are in {box.path}')
-    click.echo('Make sure to protect and backup this directory!')
 
 
 @init.command('s3')
@@ -86,13 +83,14 @@ def init_s3(ctx, bucket, storage_class, tier, profile):
     box.config['storage_class'] = storage_class
     box.config['tier'] = tier
     box.config['profile'] = profile
+    click.echo('Initializing box.')
     try:
-        box.init()
+        box.init(log=click.echo)
     except Exception as e:
         raise click.ClickException('Initialization failed. ({})'.format(e))
+    click.echo(f'- Your encryption keys are in {box.path}')
+    click.echo('- Make sure to protect and backup this directory!')
     click.echo('Box initialized.')
-    click.echo(f'Your encryption keys are in {box.path}')
-    click.echo('Make sure to protect and backup this directory!')
 
 
 @icebox.command()
@@ -125,7 +123,13 @@ def put(ctx, box_name, source, comment, compression, mode, mtime):
         raise click.ClickException('Source already exists in box.')
     click.echo(f'Storing {src_name} in box.')
     try:
-        box.store(src_path, comment, compression, mode, mtime)
+        box.store(
+            src_path,
+            comment=comment,
+            compression=compression,
+            mode=mode,
+            mtime=mtime,
+            log=click.echo)
     except Exception as e:
         raise click.ClickException(f'Operation failed. ({e})')
     click.echo(f'Stored {src_name} in box.')
@@ -164,7 +168,13 @@ def get(ctx, box_name, source, destination, option, mode, mtime):
     dst_path = Path(destination)
     backend_options = dict(o.split('=') for o in option)
     try:
-        box.retrieve(source, dst_path, backend_options, mode, mtime)
+        box.retrieve(
+            source,
+            dst_path,
+            backend_options,
+            mode=mode,
+            mtime=mtime,
+            log=click.echo)
     except Exception as e:
         raise click.ClickException(f'Operation failed. ({e})')
     click.echo(f'Retrieved {source} from box.')

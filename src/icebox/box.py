@@ -1,4 +1,3 @@
-import logging
 from shutil import rmtree
 import sqlite3
 import time
@@ -18,8 +17,6 @@ from icebox.data import JobStatus, Source
 
 DATA_SUFFIX = '.data'
 META_SUFFIX = '.meta'
-
-LOG = logging.getLogger(__name__)
 
 SQL_SCHEMA_VERSION = '3'
 SQL_CREATE_SOURCES = '''CREATE TABLE IF NOT EXISTS sources (
@@ -58,13 +55,14 @@ class Box():
         """Check if a configuration file for this box exists."""
         return self.config_file.exists()
 
-    def init(self):
+    def init(self, log=lambda msg: None):
         """Initialize this box on creation."""
         if self.exists():
             raise Exception('Box already initialized.')
         self.path.mkdir(mode=0o700, parents=True, exist_ok=True)
         self._db = SQLite(self.path)
         if not (self.path / SECRET_KEY).exists():
+            log('- Generating encryption keys.')
             SSH.keygen(self.path)
         backend = self._backend()
         backend.box_init()
@@ -77,7 +75,8 @@ class Box():
             comment=None,
             compression=Compression.GZ,
             mode=False,
-            mtime=False):
+            mtime=False,
+            log=lambda msg: None):
         """Encrypt the given source and store in backend."""
         if not self.exists():
             raise Exception('Box not found.')
@@ -86,6 +85,7 @@ class Box():
         data_path = temp_path / (src_path.name + '.zip')
         meta_path = temp_path / (src_path.name + META_SUFFIX)
         try:
+            log('- Creating archive.')
             create_archive(
                 src_path,
                 data_path,
@@ -97,12 +97,11 @@ class Box():
             _export_metadata(data_path, meta_path)
             data_name, meta_name = _backend_names()
             source = Source(src_path.name)
-            LOG.debug('Storing %s', source.name)
+            log('- Transferring to backend.')
             source.comment = comment
             source.size = data_path.stat().st_size
             source.data_key = backend.store_data(data_path, data_name)
             source.meta_key = backend.store_meta(meta_path, meta_name)
-            LOG.debug('Stored %s', source.name)
             self._db.save_source(source)
         finally:
             rmtree(temp_path, ignore_errors=True)
@@ -113,7 +112,8 @@ class Box():
             dst_path,
             backend_options,
             mode=False,
-            mtime=False):
+            mtime=False,
+            log=lambda msg: None):
         """Retrieve source from the backend and decrypt."""
         if not self.exists():
             raise Exception('Box not found.')
@@ -122,26 +122,27 @@ class Box():
         try:
             source = self._db.load_source(name)
             # Get existing retrieval job or start a new one
-            key = self._db.load_job(name)
-            if key is None:
-                key = backend.retrieve_init(source.data_key, backend_options)
-                self._db.save_job(name, key)
+            job = self._db.load_job(name)
+            if job is None:
+                log('- Initiating transfer from backend.')
+                job = backend.retrieve_init(source.data_key, backend_options)
+                self._db.save_job(name, job)
             # Wait until job is done
-            status = backend.retrieve_status(key)
+            status = backend.retrieve_status(job)
             if status == JobStatus.running:
-                LOG.debug('Retrieve pending for %s', name)
+                log('- Transfer from backend pending.')
             while status == JobStatus.running:
                 time.sleep(60)
-                status = backend.retrieve_status(key)
+                status = backend.retrieve_status(job)
             if status == JobStatus.failure:
                 self._db.delete_job(name)
-                raise Exception('Retrieval job failed.')
+                raise Exception('Transfer from backend failed.')
             # Download the data file
-            LOG.debug('Retrieving %s', name)
-            data_path = backend.retrieve_finish(key)
+            log('- Transferring from backend.')
+            data_path = backend.retrieve_finish(job)
             self._db.delete_job(name)
-            LOG.debug('Retrieved %s', name)
             # Decrypt original source
+            log('- Extracting archive.')
             extract_archive(
                 data_path,
                 dst_path,
