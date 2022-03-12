@@ -119,13 +119,13 @@ class TestFolderBackend():
         assert output == ''
         cli.put('test')
         output = cli.list()
-        assert output == 'test\n'
+        assert 'test' in output
         cli.put('folder')
         output = cli.list()
-        assert output == 'folder\ntest\n'
+        assert 'folder' in output
         cli.delete('folder')
         output = cli.list()
-        assert output == 'test\n'
+        assert 'folder' not in output
 
     def test_refresh(self, datadir):
         """Test the refresh command."""
@@ -144,7 +144,7 @@ class TestFolderBackend():
         assert output == ''
         cli.refresh()
         output = cli.list()
-        assert output == 'test\n'
+        assert 'test' in output
 
     def test_version(key_path, datadir):
         """Test the version command."""

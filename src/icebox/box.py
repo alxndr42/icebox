@@ -21,10 +21,11 @@ META_SUFFIX = '.meta'
 
 LOG = logging.getLogger(__name__)
 
-SQL_SCHEMA_VERSION = '2'
+SQL_SCHEMA_VERSION = '3'
 SQL_CREATE_SOURCES = '''CREATE TABLE IF NOT EXISTS sources (
                         name text UNIQUE NOT NULL,
                         comment text,
+                        size int NOT NULL,
                         data_key text NOT NULL,
                         meta_key text NOT NULL)
                         '''
@@ -98,6 +99,7 @@ class Box():
             source = Source(src_path.name)
             LOG.debug('Storing %s', source.name)
             source.comment = comment
+            source.size = data_path.stat().st_size
             source.data_key = backend.store_data(data_path, data_name)
             source.meta_key = backend.store_meta(meta_path, meta_name)
             LOG.debug('Stored %s', source.name)
@@ -172,113 +174,123 @@ class Box():
             raise Exception('Box not found.')
         return self._db.load_sources()
 
-    def refresh(self, backend_options):
+    def refresh(self, backend_options, log=lambda msg: None):
         """Refresh local information from the backend."""
         if not self.exists():
             raise Exception('Box not found.')
         backend = self._backend()
         inventory_job = self._db.load_job(INVENTORY_JOB)
         if inventory_job is None:
-            LOG.debug('Initiating inventory job')
+            log('- Initiating inventory retrieval.')
             inventory_job = backend.inventory_init()
             self._db.save_job(INVENTORY_JOB, inventory_job)
         status = backend.inventory_status(inventory_job)
         if status == JobStatus.running:
-            LOG.debug('Inventory pending')
+            log('- Inventory retrieval pending.')
         while status == JobStatus.running:
             time.sleep(60)
             status = backend.inventory_status(inventory_job)
         if status == JobStatus.failure:
             self._db.delete_job(INVENTORY_JOB)
-            raise Exception('Inventory job failed.')
+            raise Exception('Inventory retrieval failed.')
+        log('- Inventory retrieval finished.')
 
         sources = self.sources()
         inventory = backend.inventory_finish(inventory_job)
-        verifier = KeyVerifier(sources, inventory)
+        check = InventoryCheck(sources, inventory)
 
-        duplicates = []
         jobs = {}
-        for meta_key in verifier.unknowns:
-            job = self._db.load_job(meta_key)
+        for meta, data in check.importable.items():
+            job = self._db.load_job(meta.key)
             if job is None:
-                LOG.debug('Initiating metadata retrieval')
-                job = backend.retrieve_init(meta_key, backend_options)
-                self._db.save_job(meta_key, job)
-            jobs[job] = meta_key
+                log(f'- Initiating metadata retrieval: {meta.key}')
+                job = backend.retrieve_init(meta.key, backend_options)
+                self._db.save_job(meta.key, job)
+            jobs[job] = meta
         while jobs:
             finished = []
-            for job, meta_key in jobs.items():
+            for job, meta in jobs.items():
                 status = backend.retrieve_status(job)
                 if status != JobStatus.running:
-                    self._db.delete_job(meta_key)
+                    self._db.delete_job(meta.key)
                 if status == JobStatus.failure:
-                    raise Exception('Metadata retrieval failed.')
+                    raise Exception(f'Metadata retrieval failed: {meta.key})')
                 elif status == JobStatus.success:
                     meta_path = backend.retrieve_finish(job)
                     with IcepackReader(meta_path, self.path) as archive:
                         name = archive.metadata.archive_name
                     if name.endswith('.zip'):
                         name = name[:-4]
+                    data = check.importable[meta]
                     src = Source(name)
                     src.comment = archive.metadata.comment
-                    src.data_key = verifier.unknowns[meta_key]
-                    src.meta_key = meta_key
+                    src.size = data.size
+                    src.data_key = data.key
+                    src.meta_key = meta.key
                     meta_path.unlink()
                     if not self.contains(src.name):
                         self._db.save_source(src)
-                        LOG.debug('Added %s', src.name)
+                        log(f'- Added {src.name} = {meta.key}')
                     else:
-                        duplicates.append(src)
+                        log(f'- Ignoring duplicate {src.name} = {meta.key}')
                     finished.append(job)
             jobs = {j: k for j, k in jobs.items() if j not in finished}
             if jobs:
-                LOG.debug('Metadata retrievals pending: %s', len(jobs))
+                log(f'- Metadata retrievals pending: {len(jobs)}')
                 time.sleep(60)
         self._db.delete_job(INVENTORY_JOB)
-        return duplicates, verifier.backend_singles
+
+        if check.broken_sources:
+            log('- Sources with missing backend files:')
+            for name, missing in check.broken_sources.items():
+                log(f'  {name}: {" / ".join(missing)}')
+
+        if check.broken_backend:
+            log('- Dangling backend files:')
+            for f in check.broken_backend:
+                log(f'  {f.key}')
 
     def _backend(self):
         """Return a backend instance for this box."""
         return get_backend(self.config['backend'], self.path, self.config)
 
 
-class KeyVerifier():
-    """Verify local and backend information."""
+class InventoryCheck():
+    """Find broken sources and broken/importable backend files."""
 
     def __init__(self, sources, inventory):
-        local_keys = {}
+        backend_keys = {f.key: f for f in inventory}
+        # Check sources
+        self.broken_sources = {}
         for s in sources:
-            local_keys[s.data_key] = s.name
-            local_keys[s.meta_key] = s.name
-        backend_data = self._filter_key_suffix(inventory, DATA_SUFFIX)
-        backend_meta = self._filter_key_suffix(inventory, META_SUFFIX)
-        # Find unmatched backend keys
-        singles_data = self._singles(backend_data, backend_meta)
-        singles_meta = self._singles(backend_meta, backend_data)
-        self.backend_singles = {}
-        self.backend_singles.update(singles_data)
-        self.backend_singles.update(singles_meta)
-        for name in singles_data.keys():
-            del backend_data[name]
-        for name in singles_meta.keys():
-            del backend_meta[name]
-        # Find unknown backend metadata keys and their data siblings
-        meta = {
-            n: k for n, k in backend_meta.items() if k not in local_keys}
-        self.unknowns = {
-            k: backend_data[_sibling_name(n)] for n, k in meta.items()}
+            data = backend_keys.pop(s.data_key, None)
+            meta = backend_keys.pop(s.meta_key, None)
+            if data and meta:
+                continue
+            missing = []
+            if not data:
+                missing.append(s.data_key)
+            if not meta:
+                missing.append(s.meta_key)
+            self.broken_sources[s.name] = missing
+        # Check backend files
+        self.importable = {}
+        self.broken_backend = []
+        inventory = backend_keys.values()
+        backend_data = self._map_by_name_suffix(inventory, DATA_SUFFIX)
+        backend_meta = self._map_by_name_suffix(inventory, META_SUFFIX)
+        for name, data in backend_data.items():
+            meta = backend_meta.pop(_sibling(name), None)
+            if meta:
+                self.importable[meta] = data
+            else:
+                self.broken_backend.append(data)
+        self.broken_backend.extend(backend_meta.values())
 
     @staticmethod
-    def _filter_key_suffix(dict_, suffix):
-        """Filter dict_ by key suffix."""
-        return {k: v for k, v in dict_.items() if k.endswith(suffix)}
-
-    @staticmethod
-    def _singles(dictA, dictB):
-        """Return items from dictA that have no sibling in dictB."""
-        def single(name):
-            return _sibling_name(name) not in dictB
-        return {k: v for k, v in dictA.items() if single(k)}
+    def _map_by_name_suffix(inventory, suffix):
+        """Map name to BackendFile by name suffix."""
+        return {f.name: f for f in inventory if f.name.endswith(suffix)}
 
 
 class SQLite():
@@ -291,7 +303,7 @@ class SQLite():
 
     def load_source(self, name):
         """Return a Source by name."""
-        stmt = '''SELECT name, comment, data_key, meta_key
+        stmt = '''SELECT name, comment, size, data_key, meta_key
                   FROM sources
                   WHERE name=?
                   '''
@@ -305,7 +317,7 @@ class SQLite():
 
     def load_sources(self):
         """Return an iterable for all Sources."""
-        stmt = '''SELECT name, comment, data_key, meta_key
+        stmt = '''SELECT name, comment, size, data_key, meta_key
                   FROM sources
                   ORDER BY name COLLATE NOCASE
                   '''
@@ -321,12 +333,13 @@ class SQLite():
     def save_source(self, source):
         """Save a Source."""
         stmt = '''INSERT INTO sources
-                  (name, comment, data_key, meta_key)
-                  VALUES (?, ?, ?, ?)
+                  (name, comment, size, data_key, meta_key)
+                  VALUES (?, ?, ?, ?, ?)
                   '''
         values = (
             source.name,
             source.comment,
+            source.size,
             source.data_key,
             source.meta_key
         )
@@ -396,8 +409,9 @@ class SQLite():
         source = Source()
         source.name = row[0]
         source.comment = row[1]
-        source.data_key = row[2]
-        source.meta_key = row[3]
+        source.size = row[2]
+        source.data_key = row[3]
+        source.meta_key = row[4]
         return source
 
 
@@ -417,11 +431,11 @@ def _export_metadata(src_path, dst_path):
             dst.add_metadata(meta_path, sig_path)
 
 
-def _sibling_name(name):
+def _sibling(name):
     """Return the metadata name for a data file and vice versa."""
     if name.endswith(DATA_SUFFIX):
         return name[:-len(DATA_SUFFIX)] + META_SUFFIX
     elif name.endswith(META_SUFFIX):
         return name[:-len(META_SUFFIX)] + DATA_SUFFIX
     else:
-        raise Exception('Invalid name: ' + str(name))
+        raise Exception(f'Invalid name: {name}')

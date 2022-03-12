@@ -2,7 +2,7 @@ import boto3
 
 from icepack.helper import File
 
-from icebox.data import JobStatus
+from icebox.data import BackendFile, JobStatus
 
 
 RESTORE_COMPLETE = 'ongoing-request="false"'
@@ -83,9 +83,9 @@ class Backend():
         return JobStatus.success
 
     def inventory_finish(self, job_key):
-        """Return a filename to retrieval key mapping."""
+        """Return a list of BackendFiles."""
         objects = self.bucket.objects.all()
-        return {o.key: o.key for o in objects}
+        return [BackendFile(o.key, o.key, o.size) for o in objects]
 
     def _store(self, filename, name, storage_class):
         """Store filename as name, return a retrieval key."""

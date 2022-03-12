@@ -6,7 +6,7 @@ import click
 from icepack import Age, SSH
 from icepack.model import Compression
 
-from icebox import NAME, VERSION
+from icebox import NAME, VERSION, human_readable_size
 from icebox.box import Box
 
 
@@ -199,10 +199,11 @@ def list(ctx, box_name):
     if not box.exists():
         raise click.ClickException('Box not found.')
     for source in box.sources():
+        size = human_readable_size(source.size)
         if source.comment:
-            click.echo(f'{source.name} ({source.comment})')
+            click.echo(f'{source.name} | {size} | {source.comment}')
         else:
-            click.echo(source.name)
+            click.echo(f'{source.name} | {size}')
 
 
 @icebox.command()
@@ -221,14 +222,7 @@ def refresh(ctx, box_name, option):
     click.echo('Refreshing box.')
     backend_options = dict(o.split('=') for o in option)
     try:
-        duplicates, singles = box.refresh(backend_options)
-        for d in duplicates:
-            msg = ('WARNING: Duplicate found for {}, data key: "{}", ' +
-                   'meta key: "{}"')
-            click.echo(msg.format(d.name, d.data_key, d.meta_key))
-        for name, key in singles.items():
-            msg = 'WARNING: Unmatched backend name {}, key: "{}"'
-            click.echo(msg.format(name, key))
+        box.refresh(backend_options, log=click.echo)
     except Exception as e:
         raise click.ClickException(f'Operation failed. ({e})')
     click.echo('Refreshed box.')

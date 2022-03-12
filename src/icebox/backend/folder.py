@@ -3,7 +3,7 @@ import shutil
 
 from icepack.helper import File
 
-from icebox.data import JobStatus
+from icebox.data import BackendFile, JobStatus
 
 
 class Backend():
@@ -59,11 +59,15 @@ class Backend():
         return JobStatus.success
 
     def inventory_finish(self, job_key):
-        """Return a filename to retrieval key mapping."""
-        if self.folder_path.exists():
-            return {c.name: c.name for c in self.folder_path.iterdir()}
-        else:
-            return {}
+        """Return a list of BackendFiles."""
+        if not self.folder_path.exists():
+            raise Exception(f'No such folder: {self.folder_path}')
+        result = []
+        for c in self.folder_path.iterdir():
+            if not c.is_file():
+                continue
+            result.append(BackendFile(c.name, c.name, c.stat().st_size))
+        return result
 
     def _store(self, src_path, name):
         """Store the file at src_path as name, return a retrieval key."""
