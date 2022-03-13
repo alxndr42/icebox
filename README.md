@@ -6,6 +6,7 @@ protected from unauthorized access, by using [icepack][] for archive handling.
 Supported storage backends:
 
 - Amazon S3 (`Glacier Deep Archive` storage class)
+- WebDAV
 - Local folder (for testing or third-party tools)
 
 [icepack]: https://github.com/alxndr42/icepack

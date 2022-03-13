@@ -93,6 +93,37 @@ def init_s3(ctx, bucket, storage_class, tier, profile):
     click.echo('Box initialized.')
 
 
+# TODO Make username/password optional and prompt later.
+@init.command('webdav')
+@click.argument('url')
+@click.option(
+    '--username', '-u',
+    help='WebDAV username.',
+    prompt='WebDAV username')
+@click.password_option(
+    '--password', '-p',
+    help='WebDAV password.',
+    prompt='WebDAV password')
+@click.pass_context
+def init_webdav(ctx, url, username, password):
+    """Create a WebDAV-backed box."""
+    box = ctx.obj['box']
+    box.config['backend'] = 'webdav'
+    box.config['url'] = url
+    if username:
+        box.config['username'] = username
+    if password:
+        box.config['password'] = password
+    click.echo('Initializing box.')
+    try:
+        box.init(log=click.echo)
+    except Exception as e:
+        raise click.ClickException('Initialization failed. ({})'.format(e))
+    click.echo(f'- Your encryption keys are in {box.path}')
+    click.echo('- Make sure to protect and backup this directory!')
+    click.echo('Box initialized.')
+
+
 @icebox.command()
 @click.argument('box-name')
 @click.argument('source', type=click.Path(exists=True))

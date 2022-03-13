@@ -8,6 +8,7 @@ boto3 = "*"
 click = "*"
 icepack = "*"
 pyyaml = "*"
+webdav4 = "*"
 
 [dev-packages]
 bandit = "*"
