@@ -1,5 +1,5 @@
 NAME = 'icebox'
-VERSION = '0.4.0'
+VERSION = '0.5.0'
 
 SECRET_KEY = 'identity'  # nosec No secret
 PUBLIC_KEY = 'identity.pub'
