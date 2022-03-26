@@ -38,6 +38,8 @@ example [IAM policy][] for recommended permissions.
 
 ## Usage
 
+Help for each command can be displayed by using the `--help` option.
+
 ### Create a new box
 
 Create the box *mybox* for an S3 bucket called *mybucket*:
@@ -46,14 +48,14 @@ Create the box *mybox* for an S3 bucket called *mybucket*:
 $ icebox init mybox s3 mybucket
 ```
 
-Check out the available options:
-
-```
-$ icebox init mybox s3 --help
-```
-
-**Please note:** encrypted metadata (multiple KB per `put` operation) is stored
+**Please note:** encrypted metadata (several KB per `put` operation) is stored
 using the `Standard` storage class.
+
+Create the box *mybox* for a WebDAV URL:
+
+```
+$ icebox init mybox webdav https://example.com/webdav/folder
+```
 
 ### Store data in a box
 
@@ -72,17 +74,17 @@ source and a destination:
 $ icebox get mybox grumpy.jpg -d ~/Desktop
 ```
 
-Standard retrievals can take a long time. To perform an [Expedited][]
+`Bulk` retrievals from S3 can take a long time. To perform a [Standard][]
 retrieval, use the `Tier` option:
 
 ```
-$ icebox get mybox grumpy.jpg -d ~/Desktop -o Tier=Expedited
+$ icebox get mybox grumpy.jpg -d ~/Desktop -o Tier=Standard
 ```
 
 Retrieval operations are tracked by icebox, so you can interrupt a pending
 retrieval and request the same source again later.
 
-[expedited]: https://aws.amazon.com/s3/pricing/
+[standard]: https://aws.amazon.com/s3/pricing/
 
 ### Delete data from a box
 
@@ -115,7 +117,7 @@ continue it later.
 
 ```
 $ icebox version --dependencies
-icebox 0.4.0
+icebox 0.5.0
 ✅ age found. (Version: v1.0.0)
 ✅ age-keygen found.
 ✅ ssh found. (Version: OpenSSH_8.2p1)
