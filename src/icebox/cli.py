@@ -68,21 +68,16 @@ def init_folder(ctx, folder_path):
     help='Storage class. (Default: DEEP_ARCHIVE)',
     type=click.Choice(['GLACIER', 'DEEP_ARCHIVE']),
     default='DEEP_ARCHIVE')
-@click.option(
-    '--tier', '-t',
-    help='Retrieval tier. (Default: Bulk)',
-    type=click.Choice(['Standard', 'Bulk']),
-    default='Bulk')
 @click.option('--profile', '-p', help='AWS profile.', default='default')
 @click.pass_context
-def init_s3(ctx, bucket, storage_class, tier, profile):
+def init_s3(ctx, bucket, storage_class, profile):
     """Create an Amazon S3-backed box."""
     box = ctx.obj['box']
     box.config['backend'] = 's3'
     box.config['bucket'] = bucket
-    box.config['storage_class'] = storage_class
-    box.config['tier'] = tier
     box.config['profile'] = profile
+    box.config['storage_class'] = storage_class
+    box.config['tier'] = 'Bulk'
     click.echo('Initializing box.')
     try:
         box.init(log=click.echo)
