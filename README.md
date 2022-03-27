@@ -117,7 +117,7 @@ continue it later.
 
 ```
 $ icebox version --dependencies
-icebox 0.5.0
+icebox 1.0.0
 ✅ age found. (Version: v1.0.0)
 ✅ age-keygen found.
 ✅ ssh found. (Version: OpenSSH_8.2p1)
