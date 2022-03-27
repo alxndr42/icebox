@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import click
@@ -7,9 +6,6 @@ from icepack.model import Compression
 
 from icebox import NAME, VERSION, human_readable_size
 from icebox.box import Box
-
-
-LOG_FORMAT = '%(asctime)s %(levelname)s %(name)s %(message)s'
 
 
 @click.group()
@@ -88,7 +84,6 @@ def init_s3(ctx, bucket, storage_class, profile):
     click.echo('Box initialized.')
 
 
-# TODO Make username/password optional and prompt later.
 @init.command('webdav')
 @click.argument('url')
 @click.option(
@@ -234,12 +229,15 @@ def list(ctx, box_name):
     box = Box(base_path.joinpath(box_name))
     if not box.exists():
         raise click.ClickException('Box not found.')
+    total_size = 0
     for source in box.sources():
+        total_size += source.size
         size = human_readable_size(source.size)
         if source.comment:
             click.echo(f'{source.name} | {size} | {source.comment}')
         else:
             click.echo(f'{source.name} | {size}')
+    click.echo(f'Total size: {human_readable_size(total_size)}')
 
 
 @icebox.command()

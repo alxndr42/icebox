@@ -116,7 +116,7 @@ class TestFolderBackend():
         cli = CliWrapper(datadir)
         cli.init()
         output = cli.list()
-        assert output == ''
+        assert output == 'Total size: 0.00 B\n'
         cli.put('test')
         output = cli.list()
         assert 'test' in output
@@ -141,7 +141,7 @@ class TestFolderBackend():
                 shutil.copy(str(src), str(dst))
         cli.delete('test')
         output = cli.list()
-        assert output == ''
+        assert output == 'Total size: 0.00 B\n'
         cli.refresh()
         output = cli.list()
         assert 'test' in output
