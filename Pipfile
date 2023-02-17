@@ -17,3 +17,6 @@ pytest = "*"
 pytest-datadir = "*"
 twine = "*"
 build = "*"
+
+[requires]
+python_version = "3.8"
