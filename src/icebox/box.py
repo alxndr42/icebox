@@ -3,6 +3,7 @@ import sqlite3
 import time
 import uuid
 
+from retry.api import retry_call
 import yaml
 
 from icepack import IcepackReader, create_archive, extract_archive
@@ -36,6 +37,10 @@ SQL_CREATE_SETTINGS = '''CREATE TABLE IF NOT EXISTS settings (
                          '''
 
 INVENTORY_JOB = '::inventory::'
+
+RETRY_TRIES = 5
+RETRY_DELAY = 10
+RETRY_BACKOFF = 3
 
 
 class Box():
@@ -95,13 +100,23 @@ class Box():
                 mode=mode,
                 mtime=mtime)
             _export_metadata(data_path, meta_path)
-            data_name, meta_name = _backend_names()
             source = Source(src_path.name)
-            log('- Transferring to backend.')
             source.comment = comment
             source.size = data_path.stat().st_size
-            source.data_key = backend.store_data(data_path, data_name)
-            source.meta_key = backend.store_meta(meta_path, meta_name)
+            log('- Transferring to backend.')
+            data_name, meta_name = _backend_names()
+            source.data_key = retry_call(
+                backend.store_data,
+                fargs=[data_path, data_name],
+                tries=RETRY_TRIES,
+                delay=RETRY_DELAY,
+                backoff=RETRY_BACKOFF)
+            source.meta_key = retry_call(
+                backend.store_meta,
+                fargs=[meta_path, meta_name],
+                tries=RETRY_TRIES,
+                delay=RETRY_DELAY,
+                backoff=RETRY_BACKOFF)
             self._db.save_source(source)
         finally:
             rmtree(temp_path, ignore_errors=True)
@@ -139,7 +154,12 @@ class Box():
                 raise Exception('Transfer from backend failed.')
             # Download the data file
             log('- Transferring from backend.')
-            data_path = backend.retrieve_finish(job)
+            data_path = retry_call(
+                backend.retrieve_finish,
+                fargs=[job],
+                tries=RETRY_TRIES,
+                delay=RETRY_DELAY,
+                backoff=RETRY_BACKOFF)
             self._db.delete_job(name)
             # Decrypt original source
             log('- Extracting archive.')

@@ -291,3 +291,7 @@ def version(ctx, dependencies):
         click.echo(f'✅ ssh-keygen found.')
     else:
         click.echo(f'❌ ssh-keygen not found.')
+
+
+if __name__ == '__main__':
+    icebox()
