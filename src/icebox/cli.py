@@ -1,3 +1,4 @@
+import datetime as dt
 from pathlib import Path
 
 import click
@@ -6,6 +7,12 @@ from icepack.model import Compression
 
 from icebox import NAME, VERSION, human_readable_size
 from icebox.box import Box
+
+
+def timestamp(message):
+    """Print the message with a timestamp."""
+    timestamp = dt.datetime.now().isoformat(timespec='seconds')
+    click.echo(f'{timestamp} {message}')
 
 
 @click.group()
@@ -142,7 +149,7 @@ def put(ctx, box_name, source, comment, compression, mode, mtime):
     src_name = src_path.name
     if box.contains(src_name):
         raise click.ClickException('Source already exists in box.')
-    click.echo(f'Storing {src_name} in box.')
+    timestamp(f'Storing "{src_name}" in box.')
     try:
         box.store(
             src_path,
@@ -150,10 +157,11 @@ def put(ctx, box_name, source, comment, compression, mode, mtime):
             compression=compression,
             mode=mode,
             mtime=mtime,
-            log=click.echo)
+            log=timestamp)
+        timestamp(f'Stored "{src_name}" in box.')
     except Exception as e:
-        raise click.ClickException(f'Operation failed. ({e})')
-    click.echo(f'Stored {src_name} in box.')
+        timestamp(f'Failed to store "{src_name}" in box. ({e})')
+        ctx.exit(1)
 
 
 @icebox.command()
@@ -185,7 +193,7 @@ def get(ctx, box_name, source, destination, option, mode, mtime):
         raise click.ClickException('Box not found.')
     if not box.contains(source):
         raise click.ClickException('Source not found in box.')
-    click.echo(f'Retrieving {source} from box.')
+    timestamp(f'Retrieving "{source}" from box.')
     dst_path = Path(destination)
     backend_options = dict(o.split('=') for o in option)
     try:
@@ -195,10 +203,11 @@ def get(ctx, box_name, source, destination, option, mode, mtime):
             backend_options,
             mode=mode,
             mtime=mtime,
-            log=click.echo)
+            log=timestamp)
+        timestamp(f'Retrieved "{source}" from box.')
     except Exception as e:
-        raise click.ClickException(f'Operation failed. ({e})')
-    click.echo(f'Retrieved {source} from box.')
+        timestamp(f'Failed to retrieve "{source}" from box. ({e})')
+        ctx.exit(1)
 
 
 @icebox.command()
@@ -217,7 +226,7 @@ def delete(ctx, box_name, source):
         box.delete(source)
     except Exception as e:
         raise click.ClickException(f'Operation failed. ({e})')
-    click.echo(f'Deleted {source} from box.')
+    click.echo(f'Deleted "{source}" from box.')
 
 
 @icebox.command()

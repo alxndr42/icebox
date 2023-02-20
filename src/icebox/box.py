@@ -90,7 +90,7 @@ class Box():
         data_path = temp_path / (src_path.name + '.zip')
         meta_path = temp_path / (src_path.name + META_SUFFIX)
         try:
-            log('- Creating archive.')
+            log('Creating archive.')
             create_archive(
                 src_path,
                 data_path,
@@ -103,7 +103,7 @@ class Box():
             source = Source(src_path.name)
             source.comment = comment
             source.size = data_path.stat().st_size
-            log('- Transferring to backend.')
+            log('Transferring to backend.')
             data_name, meta_name = _backend_names()
             source.data_key = retry_call(
                 backend.store_data,
@@ -139,13 +139,13 @@ class Box():
             # Get existing retrieval job or start a new one
             job = self._db.load_job(name)
             if job is None:
-                log('- Initiating transfer from backend.')
+                log('Initiating transfer from backend.')
                 job = backend.retrieve_init(source.data_key, backend_options)
                 self._db.save_job(name, job)
             # Wait until job is done
             status = backend.retrieve_status(job)
             if status == JobStatus.running:
-                log('- Transfer from backend pending.')
+                log('Transfer from backend pending.')
             while status == JobStatus.running:
                 time.sleep(60)
                 status = backend.retrieve_status(job)
@@ -153,7 +153,7 @@ class Box():
                 self._db.delete_job(name)
                 raise Exception('Transfer from backend failed.')
             # Download the data file
-            log('- Transferring from backend.')
+            log('Transferring from backend.')
             data_path = retry_call(
                 backend.retrieve_finish,
                 fargs=[job],
@@ -162,7 +162,7 @@ class Box():
                 backoff=RETRY_BACKOFF)
             self._db.delete_job(name)
             # Decrypt original source
-            log('- Extracting archive.')
+            log('Extracting archive.')
             extract_archive(
                 data_path,
                 dst_path,
