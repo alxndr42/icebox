@@ -2,7 +2,7 @@ import datetime as dt
 from pathlib import Path
 
 import click
-from icepack import Age, SSH
+from icepack import Age, BZip2, GZip, SSH
 from icepack.model import Compression
 
 from icebox import NAME, VERSION, human_readable_size
@@ -300,6 +300,12 @@ def version(ctx, dependencies):
         click.echo(f'✅ ssh-keygen found.')
     else:
         click.echo(f'❌ ssh-keygen not found.')
+    pigz_version = GZip.pigz_version()
+    if pigz_version:
+        click.echo(f'✅ pigz found. (Version: {pigz_version})')
+    pbzip2_version = BZip2.pbzip2_version()
+    if pbzip2_version:
+        click.echo(f'✅ pbzip2 found. (Version: {pbzip2_version})')
 
 
 if __name__ == '__main__':

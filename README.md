@@ -25,6 +25,8 @@ Install with `pip` or [pipx][]:
 $ pip install icebox
 ```
 
+If `pigz` or `pbzip2` are installed, they will be used for faster compression.
+
 [pipx]: https://pypa.github.io/pipx/
 
 ### AWS credentials
