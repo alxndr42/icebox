@@ -39,7 +39,7 @@ SQL_CREATE_SETTINGS = '''CREATE TABLE IF NOT EXISTS settings (
 INVENTORY_JOB = '::inventory::'
 
 RETRY_TRIES = 5
-RETRY_DELAY = 10
+RETRY_DELAY = 30
 RETRY_BACKOFF = 3
 
 
@@ -110,13 +110,15 @@ class Box():
                 fargs=[data_path, data_name],
                 tries=RETRY_TRIES,
                 delay=RETRY_DELAY,
-                backoff=RETRY_BACKOFF)
+                backoff=RETRY_BACKOFF,
+                on_exception=_retry_exc('Archive upload', log))
             source.meta_key = retry_call(
                 backend.store_meta,
                 fargs=[meta_path, meta_name],
                 tries=RETRY_TRIES,
                 delay=RETRY_DELAY,
-                backoff=RETRY_BACKOFF)
+                backoff=RETRY_BACKOFF,
+                on_exception=_retry_exc('Metadata upload', log))
             self._db.save_source(source)
         finally:
             rmtree(temp_path, ignore_errors=True)
@@ -159,7 +161,8 @@ class Box():
                 fargs=[job],
                 tries=RETRY_TRIES,
                 delay=RETRY_DELAY,
-                backoff=RETRY_BACKOFF)
+                backoff=RETRY_BACKOFF,
+                on_exception=_retry_exc('Archive download', log))
             self._db.delete_job(name)
             # Decrypt original source
             log('Extracting archive.')
@@ -450,6 +453,22 @@ def _export_metadata(src_path, dst_path):
         meta_path, sig_path = src.extract_metadata()
         with Zip(dst_path, 'w') as dst:
             dst.add_metadata(meta_path, sig_path)
+
+
+def _retry_exc(prefix, log):
+    """Return a retry_call() exception handler for logging."""
+    tries = RETRY_TRIES
+
+    def func(exc):
+        nonlocal tries
+        tries -= 1
+        if tries > 0:
+            log(f'{prefix} failed, retrying...')
+        else:
+            log(f'{prefix} failed.')
+        return False
+
+    return func
 
 
 def _sibling(name):
